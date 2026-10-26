@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ide_bg_primary">#0D1117</color>
+    <color name="ide_bg_secondary">#161B22</color>
+    <color name="ide_bg_surface">#21262D</color>
+    <color name="ide_bg_elevated">#30363D</color>
+    <color name="ide_border">#30363D</color>
+    <color name="ide_text_primary">#E6EDF3</color>
+    <color name="ide_text_secondary">#8B949E</color>
+    <color name="ide_accent_green">#3FB950</color>
+    <color name="ide_accent_blue">#58A6FF</color>
+    <color name="ide_accent_purple">#D2A8FF</color>
+    <color name="ide_accent_orange">#FFA657</color>
+    <color name="ide_accent_red">#F85149</color>
+    <color name="ide_accent_cyan">#79C0FF</color>
+    <color name="ide_tab_active">#1F6FEB</color>
+    <color name="ide_tab_inactive">#21262D</color>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TermIDE" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:statusBarColor">@color/ide_bg_secondary</item>
+        <item name="android:navigationBarColor">@color/ide_bg_primary</item>
+        <item name="android:windowBackground">@color/ide_bg_primary</item>
+        <item name="android:colorPrimary">@color/ide_accent_blue</item>
+        <item name="android:colorAccent">@color/ide_accent_green</item>
+    </style>
+</resources>

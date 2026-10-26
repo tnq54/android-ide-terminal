@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TermIDE Studio</string>
+    <string name="tab_terminal">Terminal</string>
+    <string name="tab_editor">Code Editor</string>
+    <string name="tab_files">Files</string>
+    <string name="terminal_input_hint">Nhập lệnh shell (vd: ls -la, sh hello.sh, uname -a)...</string>
+    <string name="btn_send">Chạy</string>
+    <string name="btn_run_code">▶ Run</string>
+    <string name="btn_save_code">💾 Save</string>
+    <string name="btn_new_file">+ File</string>
+    <string name="btn_new_folder">+ Folder</string>
+    <string name="btn_tools">⚡ Tools</string>
+</resources>
