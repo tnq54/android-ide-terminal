@@ -1,6 +1,7 @@
 package com.termide.android
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -9,15 +10,20 @@ import java.nio.file.Files
 class TerminalSessionTest {
 
     @Test
-    fun testWorkspaceInitializerCreatesStarterFiles() {
+    fun testWorkspaceInitializerCreatesStarterFilesAndSearch() {
         val tempDir = Files.createTempDirectory("termide_ws_test").toFile()
         try {
             val helloFile = WorkspaceInitializer.ensureDefaultWorkspace(tempDir)
             assertTrue(helloFile.exists())
             assertTrue(File(tempDir, "sysinfo.sh").exists())
+            assertTrue(File(tempDir, "benchmark.sh").exists())
             assertTrue(File(tempDir, "script.py").exists())
             assertTrue(File(tempDir, "Main.kt").exists())
             assertTrue(File(tempDir, "README.md").exists())
+
+            val searchHits = WorkspaceInitializer.searchInWorkspace(tempDir, "Welcome to TermIDE")
+            assertTrue(searchHits.isNotEmpty())
+            assertEquals("hello.sh", searchHits.first().file.name)
         } finally {
             tempDir.deleteRecursively()
         }
@@ -46,6 +52,36 @@ class TerminalSessionTest {
             assertTrue(session.getTranscript().contains("Hello TermIDE"))
             assertEquals(subDir.canonicalPath, session.workingDir.canonicalPath)
             assertEquals("~/projects", session.formatPath(session.workingDir))
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testEditorTabDocumentUndoRedo() {
+        val dummyFile = File("/tmp/test_undo.sh")
+        val doc = EditorTabDocument(dummyFile, "line 1\n")
+        assertFalse(doc.canUndo())
+
+        doc.onContentEdited("line 1\nline 2\n")
+        assertTrue(doc.isModified)
+        assertTrue(doc.canUndo())
+
+        val undone = doc.performUndo()
+        assertEquals("line 1\n", undone)
+        assertTrue(doc.canRedo())
+
+        val redone = doc.performRedo()
+        assertEquals("line 1\nline 2\n", redone)
+    }
+
+    @Test
+    fun testTabAutoCompletion() {
+        val tempDir = Files.createTempDirectory("termide_tab_test").toFile()
+        try {
+            File(tempDir, "hello_world.sh").writeText("echo hi")
+            val completed = AnsiParser.autoCompleteInput("sh hel", tempDir)
+            assertEquals("sh hello_world.sh", completed)
         } finally {
             tempDir.deleteRecursively()
         }

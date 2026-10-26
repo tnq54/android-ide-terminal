@@ -18,7 +18,7 @@ class TerminalSession(
     val commandHistory: MutableList<String> = mutableListOf()
     var historyCursor: Int = 0
 
-    private val outputBuffer = StringBuilder()
+    private val rawOutputBuffer = StringBuilder()
     private var currentProcess: Process? = null
     val isRunning = AtomicBoolean(false)
 
@@ -29,24 +29,27 @@ class TerminalSession(
     )
 
     init {
-        appendLine("╔══════════════════════════════════════════════════╗")
-        appendLine("║  TermIDE Studio Shell • Session #$id ($title)     ║")
-        appendLine("║  Type 'help' for built-in IDE terminal commands  ║")
-        appendLine("╚══════════════════════════════════════════════════╝")
-        appendLine("Working directory: ${formatPath(workingDir)}")
+        appendLine("\u001B[36m╔══════════════════════════════════════════════════╗\u001B[0m")
+        appendLine("\u001B[36m║\u001B[0m  \u001B[1;32mTermIDE Studio v2.0\u001B[0m • Session #$id ($title)        \u001B[36m║\u001B[0m")
+        appendLine("\u001B[36m║\u001B[0m  Type \u001B[33m'help'\u001B[0m for built-in IDE terminal commands  \u001B[36m║\u001B[0m")
+        appendLine("\u001B[36m╚══════════════════════════════════════════════════╝\u001B[0m")
+        appendLine("Working directory: \u001B[34m${formatPath(workingDir)}\u001B[0m")
         appendLine("")
     }
 
-    fun getTranscript(): String = synchronized(outputBuffer) {
-        outputBuffer.toString()
+    fun getRawTranscript(): String = synchronized(rawOutputBuffer) {
+        rawOutputBuffer.toString()
+    }
+
+    fun getTranscript(): String = synchronized(rawOutputBuffer) {
+        stripAnsiCodes(rawOutputBuffer.toString())
     }
 
     fun appendText(text: String) {
-        val cleaned = stripAnsiCodes(text)
-        synchronized(outputBuffer) {
-            outputBuffer.append(cleaned)
-            if (outputBuffer.length > MAX_BUFFER_CHARS) {
-                outputBuffer.delete(0, outputBuffer.length - MAX_BUFFER_CHARS)
+        synchronized(rawOutputBuffer) {
+            rawOutputBuffer.append(text)
+            if (rawOutputBuffer.length > MAX_BUFFER_CHARS) {
+                rawOutputBuffer.delete(0, rawOutputBuffer.length - MAX_BUFFER_CHARS)
             }
         }
     }
@@ -56,8 +59,8 @@ class TerminalSession(
     }
 
     fun clearTranscript() {
-        synchronized(outputBuffer) {
-            outputBuffer.clear()
+        synchronized(rawOutputBuffer) {
+            rawOutputBuffer.clear()
         }
     }
 
@@ -87,10 +90,10 @@ class TerminalSession(
         return if (proc != null && proc.isAlive) {
             proc.destroyForcibly()
             isRunning.set(false)
-            appendLine("^C [Process interrupted]")
+            appendLine("\u001B[31m^C [Process interrupted]\u001B[0m")
             true
         } else {
-            appendLine("^C")
+            appendLine("\u001B[31m^C\u001B[0m")
             false
         }
     }
@@ -123,14 +126,14 @@ class TerminalSession(
                 return
             }
             cmd == "help" -> {
-                appendLine("Built-in TermIDE Shell Commands:")
-                appendLine("  help              Show this help message")
-                appendLine("  clear / cls       Clear terminal screen")
-                appendLine("  cd <path>         Change working directory (~ for workspace)")
-                appendLine("  pwd               Print working directory")
-                appendLine("  export KEY=VAL    Set session environment variable")
-                appendLine("  history           Show command history")
-                appendLine("  sh <file.sh>      Execute shell script in workspace")
+                appendLine("\u001B[1;36mBuilt-in TermIDE Studio v2.0 Commands:\u001B[0m")
+                appendLine("  \u001B[32mhelp\u001B[0m              Show this help message")
+                appendLine("  \u001B[32mclear / cls\u001B[0m       Clear terminal screen")
+                appendLine("  \u001B[32mcd <path>\u001B[0m         Change working directory (~ for workspace)")
+                appendLine("  \u001B[32mpwd\u001B[0m               Print working directory")
+                appendLine("  \u001B[32mexport KEY=VAL\u001B[0m    Set session environment variable")
+                appendLine("  \u001B[32mhistory\u001B[0m           Show command history")
+                appendLine("  \u001B[32msh <file.sh>\u001B[0m      Execute shell script in workspace")
                 appendLine("")
                 onOutputUpdate()
                 onComplete(0)
@@ -138,7 +141,7 @@ class TerminalSession(
             }
             cmd == "history" -> {
                 commandHistory.forEachIndexed { index, item ->
-                    appendLine("  ${index + 1}  $item")
+                    appendLine("  \u001B[90m${index + 1}\u001B[0m  $item")
                 }
                 onOutputUpdate()
                 onComplete(0)
@@ -162,7 +165,7 @@ class TerminalSession(
                     onOutputUpdate()
                     onComplete(0)
                 } else {
-                    appendLine("cd: no such directory: $arg")
+                    appendLine("\u001B[31mcd: no such directory: $arg\u001B[0m")
                     onOutputUpdate()
                     onComplete(1)
                 }
@@ -178,7 +181,7 @@ class TerminalSession(
                     onOutputUpdate()
                     onComplete(0)
                 } else {
-                    appendLine("export: usage: export KEY=VALUE")
+                    appendLine("\u001B[31mexport: usage: export KEY=VALUE\u001B[0m")
                     onOutputUpdate()
                     onComplete(1)
                 }
@@ -190,7 +193,6 @@ class TerminalSession(
         isRunning.set(true)
         try {
             val shellBinary = if (File("/system/bin/sh").exists()) "/system/bin/sh" else "sh"
-            // Append pwd marker so if user chains `cd subdir && ...` we track the final directory
             val wrappedCmd = "$cmd\n__EC=\$?\necho \"__TERMIDE_PWD__:\$(pwd)\"\nexit \$__EC"
             val pb = ProcessBuilder(shellBinary, "-c", wrappedCmd)
             pb.directory(workingDir)
@@ -223,7 +225,7 @@ class TerminalSession(
 
             val exitCode = process.waitFor()
             if (exitCode != 0) {
-                appendLine("[Exit code: $exitCode]")
+                appendLine("\u001B[31m[Exit code: $exitCode]\u001B[0m")
             }
             isRunning.set(false)
             currentProcess = null
@@ -232,7 +234,7 @@ class TerminalSession(
         } catch (e: Exception) {
             isRunning.set(false)
             currentProcess = null
-            appendLine("Error executing command: ${e.message}")
+            appendLine("\u001B[31mError executing command: ${e.message}\u001B[0m")
             onOutputUpdate()
             onComplete(1)
         }

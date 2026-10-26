@@ -2,6 +2,8 @@ package com.termide.android
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Typeface
@@ -36,11 +38,14 @@ class MainActivity : Activity() {
     // Workspace & State
     private lateinit var workspaceDir: File
     private lateinit var currentExplorerDir: File
-    private var currentEditorFile: File? = null
-    private var isEditorModified: Boolean = false
     private var isApplyingSyntax: Boolean = false
     private var fontSizeSp: Float = 13f
     private var activeTabMode: TabMode = TabMode.TERMINAL
+    private var isSplitMode: Boolean = false
+
+    // Multi-Tab Editor State
+    private val editorTabs = mutableListOf<EditorTabDocument>()
+    private var activeEditorTabIndex: Int = 0
 
     // Terminal Sessions
     private val sessions = mutableListOf<TerminalSession>()
@@ -51,6 +56,7 @@ class MainActivity : Activity() {
     private lateinit var rootLayout: LinearLayout
     private lateinit var topHeaderBar: LinearLayout
     private lateinit var tvSubtitleStatus: TextView
+    private lateinit var btnToggleSplit: TextView
     private lateinit var btnQuickRun: TextView
     private lateinit var btnQuickTools: TextView
     private lateinit var tabBtnTerminal: TextView
@@ -61,9 +67,11 @@ class MainActivity : Activity() {
     private lateinit var paneTerminal: LinearLayout
     private lateinit var paneEditor: LinearLayout
     private lateinit var paneFiles: LinearLayout
+    private lateinit var splitPaneDivider: View
 
     // Terminal Views
     private lateinit var sessionTabsContainer: LinearLayout
+    private lateinit var btnCopyTerminal: TextView
     private lateinit var btnNewSession: TextView
     private lateinit var btnCloseSession: TextView
     private lateinit var terminalScrollView: ScrollView
@@ -74,11 +82,16 @@ class MainActivity : Activity() {
     private lateinit var btnSendCommand: TextView
 
     // Editor Views
+    private lateinit var editorTabsContainer: LinearLayout
+    private lateinit var btnCloseEditorTab: TextView
     private lateinit var tvEditorFileName: TextView
+    private lateinit var btnEditorUndo: TextView
+    private lateinit var btnEditorRedo: TextView
     private lateinit var btnEditorNew: TextView
     private lateinit var btnEditorFind: TextView
     private lateinit var btnEditorSave: TextView
     private lateinit var btnEditorRun: TextView
+    private lateinit var editorScrollView: ScrollView
     private lateinit var tvLineNumbers: TextView
     private lateinit var etCodeEditor: EditText
     private lateinit var editorSymbolsContainer: LinearLayout
@@ -91,6 +104,7 @@ class MainActivity : Activity() {
     private lateinit var btnOpenTermInDir: TextView
     private lateinit var btnCreateFile: TextView
     private lateinit var btnCreateFolder: TextView
+    private lateinit var btnGlobalSearch: TextView
     private lateinit var btnHomeWorkspace: TextView
     private lateinit var btnRefreshFiles: TextView
     private lateinit var lvFiles: ListView
@@ -110,11 +124,17 @@ class MainActivity : Activity() {
         setupTerminalUi()
         setupEditorUi()
         setupFileExplorerUi()
+        restoreSavedPreferences()
 
         // Create initial terminal session
         createNewTerminalSession(workspaceDir)
-        // Open starter script in editor
+        // Pre-open starter files in multi-tab editor
         openFileInEditor(starterScript, switchToEditorTab = false)
+        val sysInfo = File(workspaceDir, "sysinfo.sh")
+        if (sysInfo.exists()) {
+            openFileInEditor(sysInfo, switchToEditorTab = false)
+            switchToEditorTab(0)
+        }
         // Load file explorer list
         refreshFileExplorer()
     }
@@ -123,6 +143,7 @@ class MainActivity : Activity() {
         rootLayout = findViewById(R.id.rootLayout)
         topHeaderBar = findViewById(R.id.topHeaderBar)
         tvSubtitleStatus = findViewById(R.id.tvSubtitleStatus)
+        btnToggleSplit = findViewById(R.id.btnToggleSplit)
         btnQuickRun = findViewById(R.id.btnQuickRun)
         btnQuickTools = findViewById(R.id.btnQuickTools)
 
@@ -133,8 +154,10 @@ class MainActivity : Activity() {
         paneTerminal = findViewById(R.id.paneTerminal)
         paneEditor = findViewById(R.id.paneEditor)
         paneFiles = findViewById(R.id.paneFiles)
+        splitPaneDivider = findViewById(R.id.splitPaneDivider)
 
         sessionTabsContainer = findViewById(R.id.sessionTabsContainer)
+        btnCopyTerminal = findViewById(R.id.btnCopyTerminal)
         btnNewSession = findViewById(R.id.btnNewSession)
         btnCloseSession = findViewById(R.id.btnCloseSession)
         terminalScrollView = findViewById(R.id.terminalScrollView)
@@ -144,11 +167,16 @@ class MainActivity : Activity() {
         btnToggleKeyboard = findViewById(R.id.btnToggleKeyboard)
         btnSendCommand = findViewById(R.id.btnSendCommand)
 
+        editorTabsContainer = findViewById(R.id.editorTabsContainer)
+        btnCloseEditorTab = findViewById(R.id.btnCloseEditorTab)
         tvEditorFileName = findViewById(R.id.tvEditorFileName)
+        btnEditorUndo = findViewById(R.id.btnEditorUndo)
+        btnEditorRedo = findViewById(R.id.btnEditorRedo)
         btnEditorNew = findViewById(R.id.btnEditorNew)
         btnEditorFind = findViewById(R.id.btnEditorFind)
         btnEditorSave = findViewById(R.id.btnEditorSave)
         btnEditorRun = findViewById(R.id.btnEditorRun)
+        editorScrollView = findViewById(R.id.editorScrollView)
         tvLineNumbers = findViewById(R.id.tvLineNumbers)
         etCodeEditor = findViewById(R.id.etCodeEditor)
         editorSymbolsContainer = findViewById(R.id.editorSymbolsContainer)
@@ -160,15 +188,12 @@ class MainActivity : Activity() {
         btnOpenTermInDir = findViewById(R.id.btnOpenTermInDir)
         btnCreateFile = findViewById(R.id.btnCreateFile)
         btnCreateFolder = findViewById(R.id.btnCreateFolder)
+        btnGlobalSearch = findViewById(R.id.btnGlobalSearch)
         btnHomeWorkspace = findViewById(R.id.btnHomeWorkspace)
         btnRefreshFiles = findViewById(R.id.btnRefreshFiles)
         lvFiles = findViewById(R.id.lvFiles)
     }
 
-    /**
-     * Adapts layout to Android phone safe areas (Status Bar, Camera Notch/Cutout,
-     * Gesture Navigation Bar, and Soft Keyboard IME on Android 7 through Android 15+).
-     */
     private fun setupWindowInsetsForMobile() {
         rootLayout.setOnApplyWindowInsetsListener { view, insets ->
             var topInset = 0
@@ -200,11 +225,10 @@ class MainActivity : Activity() {
 
             view.setPadding(leftInset, topInset, rightInset, bottomInset)
 
-            // On landscape phones when keyboard is open, hide top header to maximize workspace height
             val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             topHeaderBar.visibility = if (imeVisible && isLandscape) View.GONE else View.VISIBLE
 
-            if (imeVisible && activeTabMode == TabMode.TERMINAL) {
+            if (imeVisible && (activeTabMode == TabMode.TERMINAL || isSplitMode)) {
                 terminalScrollView.post {
                     terminalScrollView.fullScroll(View.FOCUS_DOWN)
                 }
@@ -215,12 +239,29 @@ class MainActivity : Activity() {
     }
 
     private fun setupNavigationTabs() {
-        tabBtnTerminal.setOnClickListener { switchTab(TabMode.TERMINAL) }
-        tabBtnEditor.setOnClickListener { switchTab(TabMode.EDITOR) }
+        tabBtnTerminal.setOnClickListener {
+            isSplitMode = false
+            switchTab(TabMode.TERMINAL)
+        }
+        tabBtnEditor.setOnClickListener {
+            isSplitMode = false
+            switchTab(TabMode.EDITOR)
+        }
         tabBtnFiles.setOnClickListener {
+            isSplitMode = false
             hideSoftKeyboard()
             refreshFileExplorer()
             switchTab(TabMode.FILES)
+        }
+
+        btnToggleSplit.setOnClickListener {
+            isSplitMode = !isSplitMode
+            applyPaneVisibility()
+            Toast.makeText(
+                this,
+                if (isSplitMode) "Đã bật chế độ Chia đôi (Editor + Terminal)" else "Đã tắt chế độ Chia đôi",
+                Toast.LENGTH_SHORT
+            ).show()
         }
 
         btnQuickRun.setOnClickListener {
@@ -234,15 +275,45 @@ class MainActivity : Activity() {
 
     private fun switchTab(mode: TabMode) {
         activeTabMode = mode
-        paneTerminal.visibility = if (mode == TabMode.TERMINAL) View.VISIBLE else View.GONE
-        paneEditor.visibility = if (mode == TabMode.EDITOR) View.VISIBLE else View.GONE
-        paneFiles.visibility = if (mode == TabMode.FILES) View.VISIBLE else View.GONE
-
-        styleTabButton(tabBtnTerminal, mode == TabMode.TERMINAL)
-        styleTabButton(tabBtnEditor, mode == TabMode.EDITOR)
-        styleTabButton(tabBtnFiles, mode == TabMode.FILES)
-
+        applyPaneVisibility()
         updateTopSubtitle()
+    }
+
+    private fun applyPaneVisibility() {
+        btnToggleSplit.setBackgroundResource(
+            if (isSplitMode) R.drawable.bg_button_primary else R.drawable.bg_button_surface
+        )
+        btnToggleSplit.setTextColor(
+            if (isSplitMode) 0xFFFFFFFF.toInt() else 0xFF79C0FF.toInt()
+        )
+
+        if (isSplitMode) {
+            paneEditor.visibility = View.VISIBLE
+            splitPaneDivider.visibility = View.VISIBLE
+            paneTerminal.visibility = View.VISIBLE
+            paneFiles.visibility = View.GONE
+
+            (paneEditor.layoutParams as? LinearLayout.LayoutParams)?.weight = 1.15f
+            (paneTerminal.layoutParams as? LinearLayout.LayoutParams)?.weight = 0.85f
+            paneEditor.requestLayout()
+            paneTerminal.requestLayout()
+
+            styleTabButton(tabBtnTerminal, true)
+            styleTabButton(tabBtnEditor, true)
+            styleTabButton(tabBtnFiles, false)
+        } else {
+            splitPaneDivider.visibility = View.GONE
+            paneTerminal.visibility = if (activeTabMode == TabMode.TERMINAL) View.VISIBLE else View.GONE
+            paneEditor.visibility = if (activeTabMode == TabMode.EDITOR) View.VISIBLE else View.GONE
+            paneFiles.visibility = if (activeTabMode == TabMode.FILES) View.VISIBLE else View.GONE
+
+            (paneEditor.layoutParams as? LinearLayout.LayoutParams)?.weight = 1f
+            (paneTerminal.layoutParams as? LinearLayout.LayoutParams)?.weight = 1f
+
+            styleTabButton(tabBtnTerminal, activeTabMode == TabMode.TERMINAL)
+            styleTabButton(tabBtnEditor, activeTabMode == TabMode.EDITOR)
+            styleTabButton(tabBtnFiles, activeTabMode == TabMode.FILES)
+        }
     }
 
     private fun styleTabButton(tabView: TextView, isSelected: Boolean) {
@@ -258,6 +329,13 @@ class MainActivity : Activity() {
     // ==================== TERMINAL LOGIC ====================
 
     private fun setupTerminalUi() {
+        btnCopyTerminal.setOnClickListener {
+            val transcript = currentSession()?.getTranscript().orEmpty()
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            clipboard?.setPrimaryClip(ClipData.newPlainText("TermIDE Transcript", transcript))
+            Toast.makeText(this, "Đã sao chép nội dung Terminal vào Clipboard", Toast.LENGTH_SHORT).show()
+        }
+
         btnNewSession.setOnClickListener {
             createNewTerminalSession(currentSession()?.workingDir ?: workspaceDir)
         }
@@ -304,6 +382,15 @@ class MainActivity : Activity() {
                 currentSession()?.interruptCurrentProcess()
                 renderTerminalTranscript()
             },
+            "TAB" to {
+                val session = currentSession()
+                if (session != null) {
+                    val current = etCommandInput.text.toString()
+                    val completed = AnsiParser.autoCompleteInput(current, session.workingDir)
+                    etCommandInput.setText(completed)
+                    etCommandInput.setSelection(etCommandInput.text.length)
+                }
+            },
             "CLEAR" to {
                 currentSession()?.clearTranscript()
                 renderTerminalTranscript()
@@ -320,7 +407,6 @@ class MainActivity : Activity() {
                 etCommandInput.setText(next)
                 etCommandInput.setSelection(etCommandInput.text.length)
             },
-            "TAB" to { insertIntoCommandInput("    ") },
             "/" to { insertIntoCommandInput("/") },
             "-" to { insertIntoCommandInput("-") },
             "|" to { insertIntoCommandInput(" | ") },
@@ -389,16 +475,16 @@ class MainActivity : Activity() {
                 isClickable = true
                 isFocusable = true
                 setSingleLine(true)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
                 setTypeface(Typeface.MONOSPACE, if (active) Typeface.BOLD else Typeface.NORMAL)
                 setTextColor(if (active) 0xFFE6EDF3.toInt() else 0xFF8B949E.toInt())
                 setBackgroundResource(
                     if (active) R.drawable.bg_button_primary else R.drawable.bg_button_surface
                 )
-                setPadding(dp(12), 0, dp(12), 0)
+                setPadding(dp(10), 0, dp(10), 0)
                 val lp = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    dp(30)
+                    dp(28)
                 )
                 lp.marginEnd = dp(6)
                 layoutParams = lp
@@ -453,13 +539,15 @@ class MainActivity : Activity() {
 
     private fun renderTerminalTranscript() {
         val session = currentSession() ?: return
-        tvTerminalOutput.text = session.getTranscript()
+        tvTerminalOutput.text = AnsiParser.parseToSpannable(session.getRawTranscript())
         terminalScrollView.post {
             terminalScrollView.fullScroll(View.FOCUS_DOWN)
         }
     }
 
-    // ==================== CODE EDITOR LOGIC ====================
+    // ==================== MULTI-TAB CODE EDITOR LOGIC ====================
+
+    private fun currentEditorDoc(): EditorTabDocument? = editorTabs.getOrNull(activeEditorTabIndex)
 
     private fun setupEditorUi() {
         populateEditorSymbolBar()
@@ -469,8 +557,11 @@ class MainActivity : Activity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 if (s == null || isApplyingSyntax) return
-                isEditorModified = true
+                val doc = currentEditorDoc()
+                doc?.onContentEdited(s.toString())
+                doc?.cursorPosition = etCodeEditor.selectionStart.coerceAtLeast(0)
                 updateEditorHeaderTitle()
+                rebuildEditorTabsBar()
                 updateLineNumbersAndStats(s)
 
                 isApplyingSyntax = true
@@ -478,6 +569,30 @@ class MainActivity : Activity() {
                 isApplyingSyntax = false
             }
         })
+
+        btnEditorUndo.setOnClickListener {
+            val doc = currentEditorDoc() ?: return@setOnClickListener
+            val prev = doc.performUndo()
+            if (prev != null) {
+                applyDocumentContentToEditor(doc)
+            } else {
+                Toast.makeText(this, "Không còn bước hoàn tác (Undo)", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnEditorRedo.setOnClickListener {
+            val doc = currentEditorDoc() ?: return@setOnClickListener
+            val next = doc.performRedo()
+            if (next != null) {
+                applyDocumentContentToEditor(doc)
+            } else {
+                Toast.makeText(this, "Không còn bước làm lại (Redo)", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnCloseEditorTab.setOnClickListener {
+            closeCurrentEditorTab()
+        }
 
         btnEditorSave.setOnClickListener {
             saveCurrentEditorFile(showToast = true)
@@ -527,44 +642,134 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun openFileInEditor(file: File, switchToEditorTab: Boolean) {
+    private fun openFileInEditor(file: File, switchToEditorTab: Boolean, highlightLine: Int? = null) {
         try {
-            val content = if (file.exists() && file.isFile) {
-                file.readText()
+            // Save cursor of current tab
+            currentEditorDoc()?.cursorPosition = etCodeEditor.selectionStart.coerceAtLeast(0)
+
+            val existingIdx = editorTabs.indexOfFirst { it.file.canonicalPath == file.canonicalPath }
+            if (existingIdx >= 0) {
+                switchToEditorTab(existingIdx)
             } else {
-                ""
+                val content = if (file.exists() && file.isFile) file.readText() else ""
+                val newDoc = EditorTabDocument(file, content)
+                editorTabs.add(newDoc)
+                switchToEditorTab(editorTabs.lastIndex)
             }
-            currentEditorFile = file
-            isApplyingSyntax = true
-            etCodeEditor.setText(content)
-            etCodeEditor.text?.let { SyntaxHighlighter.applyHighlighting(it) }
-            isApplyingSyntax = false
-            isEditorModified = false
 
-            updateEditorHeaderTitle()
-            etCodeEditor.text?.let { updateLineNumbersAndStats(it) }
-            tvEditorLang.text = "${SyntaxHighlighter.detectLanguage(file.name)} • UTF-8"
-
-            if (switchToEditorTab) {
+            if (switchToEditorTab && !isSplitMode) {
                 switchTab(TabMode.EDITOR)
+            }
+
+            if (highlightLine != null && highlightLine > 1) {
+                jumpToEditorLine(highlightLine)
             }
         } catch (e: Exception) {
             Toast.makeText(this, "Không thể mở file: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun saveCurrentEditorFile(showToast: Boolean): File? {
-        val target = currentEditorFile ?: File(currentExplorerDir, "untitled.sh").also {
-            currentEditorFile = it
+    private fun switchToEditorTab(index: Int) {
+        if (index !in editorTabs.indices) return
+        activeEditorTabIndex = index
+        val doc = editorTabs[index]
+        applyDocumentContentToEditor(doc)
+        rebuildEditorTabsBar()
+    }
+
+    private fun applyDocumentContentToEditor(doc: EditorTabDocument) {
+        isApplyingSyntax = true
+        etCodeEditor.setText(doc.content)
+        etCodeEditor.text?.let { SyntaxHighlighter.applyHighlighting(it) }
+        val safeCursor = doc.cursorPosition.coerceIn(0, etCodeEditor.text.length)
+        etCodeEditor.setSelection(safeCursor)
+        isApplyingSyntax = false
+
+        updateEditorHeaderTitle()
+        etCodeEditor.text?.let { updateLineNumbersAndStats(it) }
+        tvEditorLang.text = "${SyntaxHighlighter.detectLanguage(doc.file.name)} • UTF-8"
+    }
+
+    private fun closeCurrentEditorTab() {
+        if (editorTabs.size <= 1) {
+            Toast.makeText(this, "Giữ ít nhất 1 tab trong trình sửa code", Toast.LENGTH_SHORT).show()
+            return
         }
+        editorTabs.removeAt(activeEditorTabIndex)
+        if (activeEditorTabIndex >= editorTabs.size) {
+            activeEditorTabIndex = editorTabs.lastIndex
+        }
+        switchToEditorTab(activeEditorTabIndex)
+    }
+
+    private fun rebuildEditorTabsBar() {
+        editorTabsContainer.removeAllViews()
+        editorTabs.forEachIndexed { index, doc ->
+            val active = index == activeEditorTabIndex
+            val label = if (doc.isModified) "${doc.file.name} ●" else doc.file.name
+            val tabChip = TextView(this).apply {
+                text = label
+                includeFontPadding = false
+                gravity = Gravity.CENTER
+                isClickable = true
+                isFocusable = true
+                setSingleLine(true)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                setTypeface(Typeface.MONOSPACE, if (active) Typeface.BOLD else Typeface.NORMAL)
+                setTextColor(
+                    when {
+                        active -> 0xFFFFFFFF.toInt()
+                        doc.isModified -> 0xFFFFA657.toInt()
+                        else -> 0xFF8B949E.toInt()
+                    }
+                )
+                setBackgroundResource(
+                    if (active) R.drawable.bg_button_primary else R.drawable.bg_button_surface
+                )
+                setPadding(dp(10), 0, dp(10), 0)
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    dp(26)
+                )
+                lp.marginEnd = dp(5)
+                layoutParams = lp
+                setOnClickListener {
+                    currentEditorDoc()?.cursorPosition = etCodeEditor.selectionStart.coerceAtLeast(0)
+                    switchToEditorTab(index)
+                }
+            }
+            editorTabsContainer.addView(tabChip)
+        }
+    }
+
+    private fun jumpToEditorLine(targetLine: Int) {
+        val text = etCodeEditor.text.toString()
+        var currentLine = 1
+        var charIndex = 0
+        while (charIndex < text.length && currentLine < targetLine) {
+            if (text[charIndex] == '\n') {
+                currentLine++
+            }
+            charIndex++
+        }
+        val safeIdx = charIndex.coerceIn(0, text.length)
+        etCodeEditor.requestFocus()
+        etCodeEditor.setSelection(safeIdx)
+    }
+
+    private fun saveCurrentEditorFile(showToast: Boolean): File? {
+        val doc = currentEditorDoc() ?: return null
+        val target = doc.file
         return try {
             target.parentFile?.mkdirs()
-            target.writeText(etCodeEditor.text.toString())
+            val textToSave = etCodeEditor.text.toString()
+            target.writeText(textToSave)
             if (target.extension.lowercase() in listOf("sh", "bash")) {
                 target.setExecutable(true)
             }
-            isEditorModified = false
+            doc.markSaved(textToSave)
             updateEditorHeaderTitle()
+            rebuildEditorTabsBar()
             refreshFileExplorer()
             if (showToast) {
                 Toast.makeText(this, "Đã lưu ${target.name}", Toast.LENGTH_SHORT).show()
@@ -584,13 +789,16 @@ class MainActivity : Activity() {
             session.changeDirectory(savedFile.parentFile!!)
         }
         val runCmd = SyntaxHighlighter.buildRunCommand(savedFile)
-        switchTab(TabMode.TERMINAL)
+        if (!isSplitMode) {
+            switchTab(TabMode.TERMINAL)
+        }
         executeCommandInActiveSession(runCmd)
     }
 
     private fun updateEditorHeaderTitle() {
-        val name = currentEditorFile?.name ?: "untitled.sh"
-        tvEditorFileName.text = if (isEditorModified) "$name ●" else name
+        val doc = currentEditorDoc()
+        val name = doc?.file?.name ?: "untitled.sh"
+        tvEditorFileName.text = if (doc?.isModified == true) "$name ●" else name
         updateTopSubtitle()
     }
 
@@ -629,7 +837,7 @@ class MainActivity : Activity() {
         container.addView(etReplace)
 
         AlertDialog.Builder(this)
-            .setTitle("Tìm & Thay thế")
+            .setTitle("Tìm & Thay thế trong File")
             .setView(container)
             .setPositiveButton("Thay thế tất cả") { _, _ ->
                 val findStr = etFind.text.toString()
@@ -661,7 +869,7 @@ class MainActivity : Activity() {
             .show()
     }
 
-    // ==================== FILE EXPLORER LOGIC ====================
+    // ==================== FILE EXPLORER & GLOBAL SEARCH LOGIC ====================
 
     private fun setupFileExplorerUi() {
         fileAdapter = FileAdapter(this, emptyList()) { file, anchorView ->
@@ -712,11 +920,53 @@ class MainActivity : Activity() {
             promptCreateNewFolder()
         }
 
+        btnGlobalSearch.setOnClickListener {
+            showGlobalWorkspaceSearchDialog()
+        }
+
         btnOpenTermInDir.setOnClickListener {
             currentSession()?.changeDirectory(currentExplorerDir)
+            isSplitMode = false
             switchTab(TabMode.TERMINAL)
             executeCommandInActiveSession("pwd && ls -la")
         }
+    }
+
+    private fun showGlobalWorkspaceSearchDialog() {
+        val input = EditText(this).apply {
+            hint = "Nhập từ khóa cần tìm trong toàn bộ Workspace..."
+            setSingleLine(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("🔎 Tìm kiếm toàn bộ Project")
+            .setView(input)
+            .setPositiveButton("Tìm kiếm") { _, _ ->
+                val query = input.text.toString().trim()
+                if (query.isNotEmpty()) {
+                    val matches = WorkspaceInitializer.searchInWorkspace(workspaceDir, query)
+                    if (matches.isEmpty()) {
+                        Toast.makeText(this, "Không tìm thấy '$query' trong Workspace", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val items = matches.map {
+                            "${it.file.name}:${it.lineNumber}  →  ${it.linePreview}"
+                        }.toTypedArray()
+                        AlertDialog.Builder(this)
+                            .setTitle("Kết quả cho '$query' (${matches.size})")
+                            .setItems(items) { _, idx ->
+                                val chosen = matches[idx]
+                                openFileInEditor(
+                                    chosen.file,
+                                    switchToEditorTab = true,
+                                    highlightLine = chosen.lineNumber
+                                )
+                            }
+                            .setNegativeButton("Đóng", null)
+                            .show()
+                    }
+                }
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
     }
 
     private fun refreshFileExplorer() {
@@ -745,7 +995,7 @@ class MainActivity : Activity() {
                 1 -> openFileInEditor(file, switchToEditorTab = true)
                 2 -> {
                     currentSession()?.changeDirectory(file.parentFile ?: workspaceDir)
-                    switchTab(TabMode.TERMINAL)
+                    if (!isSplitMode) switchTab(TabMode.TERMINAL)
                     executeCommandInActiveSession(SyntaxHighlighter.buildRunCommand(file))
                 }
                 3 -> {
@@ -760,7 +1010,7 @@ class MainActivity : Activity() {
                 }
                 4 -> {
                     currentSession()?.changeDirectory(file)
-                    switchTab(TabMode.TERMINAL)
+                    if (!isSplitMode) switchTab(TabMode.TERMINAL)
                     executeCommandInActiveSession("pwd && ls -la")
                 }
                 5 -> promptRenameFile(file)
@@ -838,10 +1088,9 @@ class MainActivity : Activity() {
                 if (newName.isNotEmpty() && newName != file.name) {
                     val dest = File(file.parentFile, newName)
                     if (file.renameTo(dest)) {
-                        if (currentEditorFile == file) {
-                            currentEditorFile = dest
-                            updateEditorHeaderTitle()
-                        }
+                        editorTabs.find { it.file == file }?.file = dest
+                        updateEditorHeaderTitle()
+                        rebuildEditorTabsBar()
                         refreshFileExplorer()
                     } else {
                         Toast.makeText(this, "Không thể đổi tên", Toast.LENGTH_SHORT).show()
@@ -869,47 +1118,56 @@ class MainActivity : Activity() {
             .show()
     }
 
-    // ==================== QUICK TOOLS DIALOG ====================
+    // ==================== QUICK TOOLS & THEME SWITCHER ====================
 
     private fun showQuickToolsDialog() {
         val options = arrayOf(
             "🚀 Chạy thông tin hệ thống (sysinfo.sh)",
+            "⚡ Chạy Benchmark tốc độ Shell (benchmark.sh)",
+            "🔎 Tìm kiếm toàn bộ Project (Global Search)",
+            "⬒ Bật/Tắt chia đôi màn hình (Split Editor + Terminal)",
+            "🎨 Đổi giao diện màu sắc (IDE Color Theme)",
             "📊 Danh sách tiến trình đang chạy (ps)",
             "🌐 Kiểm tra giao diện mạng (ip addr / netstat)",
             "💾 Kiểm tra dung lượng bộ nhớ (df -h)",
-            "🔧 Xem biến môi trường (env)",
             "🔍 Phóng to cỡ chữ (+1sp)",
             "🔎 Thu nhỏ cỡ chữ (-1sp)",
             "🧹 Xóa màn hình Terminal"
         )
 
         AlertDialog.Builder(this)
-            .setTitle("⚡ TermIDE Quick Tools")
+            .setTitle("⚡ TermIDE Studio v2.0 Tools")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
-                        switchTab(TabMode.TERMINAL)
+                        if (!isSplitMode) switchTab(TabMode.TERMINAL)
                         executeCommandInActiveSession("sh \"${File(workspaceDir, "sysinfo.sh").absolutePath}\"")
                     }
                     1 -> {
-                        switchTab(TabMode.TERMINAL)
+                        if (!isSplitMode) switchTab(TabMode.TERMINAL)
+                        executeCommandInActiveSession("sh \"${File(workspaceDir, "benchmark.sh").absolutePath}\"")
+                    }
+                    2 -> showGlobalWorkspaceSearchDialog()
+                    3 -> {
+                        isSplitMode = !isSplitMode
+                        applyPaneVisibility()
+                    }
+                    4 -> showThemePickerDialog()
+                    5 -> {
+                        if (!isSplitMode) switchTab(TabMode.TERMINAL)
                         executeCommandInActiveSession("ps -A 2>/dev/null || ps")
                     }
-                    2 -> {
-                        switchTab(TabMode.TERMINAL)
+                    6 -> {
+                        if (!isSplitMode) switchTab(TabMode.TERMINAL)
                         executeCommandInActiveSession("ip addr 2>/dev/null || ifconfig 2>/dev/null || netstat -rn")
                     }
-                    3 -> {
-                        switchTab(TabMode.TERMINAL)
+                    7 -> {
+                        if (!isSplitMode) switchTab(TabMode.TERMINAL)
                         executeCommandInActiveSession("df -h 2>/dev/null || df")
                     }
-                    4 -> {
-                        switchTab(TabMode.TERMINAL)
-                        executeCommandInActiveSession("env | sort")
-                    }
-                    5 -> adjustFontSize(1f)
-                    6 -> adjustFontSize(-1f)
-                    7 -> {
+                    8 -> adjustFontSize(1f)
+                    9 -> adjustFontSize(-1f)
+                    10 -> {
                         currentSession()?.clearTranscript()
                         renderTerminalTranscript()
                     }
@@ -919,11 +1177,61 @@ class MainActivity : Activity() {
             .show()
     }
 
+    private fun showThemePickerDialog() {
+        val themes = arrayOf(
+            "🌑 GitHub Dark (Mặc định)",
+            "🧛 Dracula Purple",
+            "🌅 Monokai Warm",
+            "💻 Matrix OLED Black"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("🎨 Chọn Giao Diện IDE")
+            .setItems(themes) { _, index ->
+                applyColorTheme(index, savePref = true)
+            }
+            .setNegativeButton("Đóng", null)
+            .show()
+    }
+
+    private fun applyColorTheme(themeIndex: Int, savePref: Boolean) {
+        val (bgPrimary, bgSecondary) = when (themeIndex) {
+            1 -> 0xFF1E1F29.toInt() to 0xFF282A36.toInt() // Dracula
+            2 -> 0xFF1E1F1C.toInt() to 0xFF272822.toInt() // Monokai
+            3 -> 0xFF000000.toInt() to 0xFF0A0F0A.toInt() // Matrix OLED Black
+            else -> 0xFF0D1117.toInt() to 0xFF161B22.toInt() // GitHub Dark
+        }
+        terminalScrollView.setBackgroundColor(bgPrimary)
+        editorScrollView.setBackgroundColor(bgPrimary)
+        lvFiles.setBackgroundColor(bgPrimary)
+        topHeaderBar.setBackgroundColor(bgSecondary)
+        tvLineNumbers.setBackgroundColor(bgSecondary)
+
+        if (savePref) {
+            getPreferences(Context.MODE_PRIVATE).edit().putInt("theme_index", themeIndex).apply()
+        }
+    }
+
+    private fun restoreSavedPreferences() {
+        val prefs = getPreferences(Context.MODE_PRIVATE)
+        val savedTheme = prefs.getInt("theme_index", 0)
+        if (savedTheme != 0) {
+            applyColorTheme(savedTheme, savePref = false)
+        }
+        val savedFont = prefs.getFloat("font_size_sp", 13f)
+        if (savedFont != 13f) {
+            fontSizeSp = savedFont.coerceIn(10f, 22f)
+            tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+            etCodeEditor.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+            tvLineNumbers.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+        }
+    }
+
     private fun adjustFontSize(delta: Float) {
         fontSizeSp = (fontSizeSp + delta).coerceIn(10f, 22f)
         tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
         etCodeEditor.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
         tvLineNumbers.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+        getPreferences(Context.MODE_PRIVATE).edit().putFloat("font_size_sp", fontSizeSp).apply()
         Toast.makeText(this, "Cỡ chữ: ${fontSizeSp.toInt()}sp", Toast.LENGTH_SHORT).show()
     }
 
@@ -931,7 +1239,9 @@ class MainActivity : Activity() {
 
     private fun toggleSoftKeyboard(targetView: View) {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager ?: return
-        imm.toggleSoftInputFromWindow(targetView.windowToken, InputMethodManager.SHOW_FORCED, 0)
+        if (!imm.showSoftInput(targetView, InputMethodManager.SHOW_IMPLICIT)) {
+            imm.hideSoftInputFromWindow(targetView.windowToken, 0)
+        }
     }
 
     private fun hideSoftKeyboard() {
@@ -942,6 +1252,11 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        if (isSplitMode) {
+            isSplitMode = false
+            applyPaneVisibility()
+            return
+        }
         when (activeTabMode) {
             TabMode.FILES -> {
                 if (currentExplorerDir.canonicalPath != workspaceDir.canonicalPath &&
@@ -966,7 +1281,7 @@ class MainActivity : Activity() {
     private fun updateTopSubtitle() {
         val session = currentSession()
         val dirDisplay = session?.let { it.formatPath(it.workingDir) } ?: "~/workspace"
-        val fileDisplay = currentEditorFile?.name ?: "none"
+        val fileDisplay = currentEditorDoc()?.file?.name ?: "none"
         tvSubtitleStatus.text = "$dirDisplay  •  $fileDisplay"
     }
 

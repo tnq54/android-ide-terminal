@@ -45,7 +45,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:singleLine="true"
-                android:text="TermIDE Studio"
+                android:text="TermIDE Studio v2.0"
                 android:textColor="@color/ide_text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -65,6 +65,24 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/btnToggleSplit"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_button_surface"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:singleLine="true"
+            android:text="⬒ Split"
+            android:textColor="@color/ide_accent_cyan"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
             android:id="@+id/btnQuickRun"
             android:layout_width="wrap_content"
             android:layout_height="34dp"
@@ -74,8 +92,8 @@
             android:focusable="true"
             android:gravity="center"
             android:includeFontPadding="false"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
+            android:paddingStart="11dp"
+            android:paddingEnd="11dp"
             android:singleLine="true"
             android:text="▶ Run"
             android:textColor="@color/ide_text_primary"
@@ -108,7 +126,7 @@
     <LinearLayout
         android:id="@+id/navTabsBar"
         android:layout_width="match_parent"
-        android:layout_height="44dp"
+        android:layout_height="42dp"
         android:background="@color/ide_bg_secondary"
         android:gravity="center_vertical"
         android:orientation="horizontal"
@@ -171,25 +189,351 @@
         android:layout_height="1dp"
         android:background="@color/ide_border" />
 
-    <!-- Main Content Area -->
-    <FrameLayout
+    <!-- Main Content Container (Supports Single-Pane AND Split Editor+Terminal Mode) -->
+    <LinearLayout
+        android:id="@+id/mainWorkspaceContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@color/ide_bg_primary">
+        android:background="@color/ide_bg_primary"
+        android:orientation="vertical">
 
-        <!-- ==================== PANE 1: TERMINAL ==================== -->
+        <!-- ==================== PANE: CODE EDITOR ==================== -->
+        <LinearLayout
+            android:id="@+id/paneEditor"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Open File Tabs Bar (Multi-Tab Editor) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:background="@color/ide_bg_surface"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp">
+
+                <HorizontalScrollView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/editorTabsContainer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <TextView
+                    android:id="@+id/btnCloseEditorTab"
+                    android:layout_width="28dp"
+                    android:layout_height="26dp"
+                    android:layout_marginStart="4dp"
+                    android:background="@drawable/bg_button_surface"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:text="✕"
+                    android:textColor="@color/ide_accent_red"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/ide_border" />
+
+            <!-- Editor Action Bar (Responsive for narrow phone width) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@color/ide_bg_secondary"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingEnd="8dp">
+
+                <TextView
+                    android:id="@+id/tvEditorFileName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:ellipsize="middle"
+                    android:fontFamily="monospace"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
+                    android:text="hello.sh"
+                    android:textColor="@color/ide_accent_cyan"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <HorizontalScrollView
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/btnEditorUndo"
+                            android:layout_width="32dp"
+                            android:layout_height="30dp"
+                            android:layout_marginEnd="4dp"
+                            android:background="@drawable/bg_button_surface"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:text="↶"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btnEditorRedo"
+                            android:layout_width="32dp"
+                            android:layout_height="30dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_button_surface"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:text="↷"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btnEditorNew"
+                            android:layout_width="wrap_content"
+                            android:layout_height="30dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_button_surface"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="9dp"
+                            android:paddingEnd="9dp"
+                            android:singleLine="true"
+                            android:text="+ Mới"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/btnEditorFind"
+                            android:layout_width="wrap_content"
+                            android:layout_height="30dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_button_surface"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="9dp"
+                            android:paddingEnd="9dp"
+                            android:singleLine="true"
+                            android:text="🔍 Tìm"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/btnEditorSave"
+                            android:layout_width="wrap_content"
+                            android:layout_height="30dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_button_primary"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="9dp"
+                            android:paddingEnd="9dp"
+                            android:singleLine="true"
+                            android:text="💾 Lưu"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btnEditorRun"
+                            android:layout_width="wrap_content"
+                            android:layout_height="30dp"
+                            android:background="@drawable/bg_button_green"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="9dp"
+                            android:paddingEnd="9dp"
+                            android:singleLine="true"
+                            android:text="▶ Chạy"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </HorizontalScrollView>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/ide_border" />
+
+            <!-- Editor Main Body with Line Numbers -->
+            <ScrollView
+                android:id="@+id/editorScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@color/ide_bg_primary"
+                android:fillViewport="true"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tvLineNumbers"
+                        android:layout_width="42dp"
+                        android:layout_height="match_parent"
+                        android:background="@color/ide_bg_secondary"
+                        android:fontFamily="monospace"
+                        android:gravity="end|top"
+                        android:lineSpacingExtra="3dp"
+                        android:paddingStart="4dp"
+                        android:paddingTop="10dp"
+                        android:paddingEnd="6dp"
+                        android:paddingBottom="10dp"
+                        android:text="1"
+                        android:textColor="@color/ide_text_secondary"
+                        android:textSize="13sp" />
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="match_parent"
+                        android:background="@color/ide_border" />
+
+                    <EditText
+                        android:id="@+id/etCodeEditor"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="@android:color/transparent"
+                        android:fontFamily="monospace"
+                        android:gravity="start|top"
+                        android:imeOptions="flagNoExtractUi"
+                        android:inputType="textMultiLine|textNoSuggestions"
+                        android:lineSpacingExtra="3dp"
+                        android:padding="10dp"
+                        android:scrollHorizontally="false"
+                        android:textColor="@color/ide_text_primary"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </ScrollView>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/ide_border" />
+
+            <!-- Code Symbol Snippet Bar -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@color/ide_bg_secondary"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/editorSymbolsContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp" />
+            </HorizontalScrollView>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/ide_border" />
+
+            <!-- Editor Footer Status Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="26dp"
+                android:background="@color/ide_bg_secondary"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp">
+
+                <TextView
+                    android:id="@+id/tvEditorStats"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="monospace"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
+                    android:text="Ln 1, Col 1  |  0 chars"
+                    android:textColor="@color/ide_text_secondary"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/tvEditorLang"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
+                    android:text="SHELL • UTF-8"
+                    android:textColor="@color/ide_accent_blue"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Divider between Editor and Terminal when Split Mode is active -->
+        <View
+            android:id="@+id/splitPaneDivider"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:background="@color/ide_accent_blue"
+            android:visibility="gone" />
+
+        <!-- ==================== PANE: TERMINAL ==================== -->
         <LinearLayout
             android:id="@+id/paneTerminal"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:orientation="vertical"
             android:visibility="visible">
 
             <!-- Session Strip -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="38dp"
                 android:background="@color/ide_bg_secondary"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -211,27 +555,44 @@
                 </HorizontalScrollView>
 
                 <TextView
-                    android:id="@+id/btnNewSession"
+                    android:id="@+id/btnCopyTerminal"
                     android:layout_width="wrap_content"
-                    android:layout_height="30dp"
-                    android:layout_marginStart="6dp"
+                    android:layout_height="28dp"
+                    android:layout_marginStart="4dp"
                     android:background="@drawable/bg_button_surface"
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
                     android:includeFontPadding="false"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:singleLine="true"
+                    android:text="📋 Copy"
+                    android:textColor="@color/ide_text_primary"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/btnNewSession"
+                    android:layout_width="wrap_content"
+                    android:layout_height="28dp"
+                    android:layout_marginStart="4dp"
+                    android:background="@drawable/bg_button_surface"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
                     android:singleLine="true"
                     android:text="+ Phiên"
                     android:textColor="@color/ide_accent_green"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/btnCloseSession"
-                    android:layout_width="32dp"
-                    android:layout_height="30dp"
+                    android:layout_width="30dp"
+                    android:layout_height="28dp"
                     android:layout_marginStart="4dp"
                     android:background="@drawable/bg_button_surface"
                     android:clickable="true"
@@ -241,7 +602,7 @@
                     android:singleLine="true"
                     android:text="✕"
                     android:textColor="@color/ide_accent_red"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -279,10 +640,10 @@
                 android:layout_height="1dp"
                 android:background="@color/ide_border" />
 
-            <!-- Extra Keys Bar (Thumb-friendly 42dp bar for mobile) -->
+            <!-- Extra Keys Bar (Thumb-friendly 40dp bar for mobile) -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
-                android:layout_height="42dp"
+                android:layout_height="40dp"
                 android:background="@color/ide_bg_secondary"
                 android:scrollbars="none">
 
@@ -304,7 +665,7 @@
             <!-- Command Input Bar -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="50dp"
                 android:background="@color/ide_bg_secondary"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -375,250 +736,12 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- ==================== PANE 2: CODE EDITOR ==================== -->
-        <LinearLayout
-            android:id="@+id/paneEditor"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <!-- Editor Action Bar (Responsive for narrow phone width) -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:background="@color/ide_bg_secondary"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="10dp"
-                android:paddingEnd="8dp">
-
-                <TextView
-                    android:id="@+id/tvEditorFileName"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:ellipsize="middle"
-                    android:fontFamily="monospace"
-                    android:includeFontPadding="false"
-                    android:singleLine="true"
-                    android:text="hello.sh"
-                    android:textColor="@color/ide_accent_cyan"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <HorizontalScrollView
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:scrollbars="none">
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:id="@+id/btnEditorNew"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:layout_marginEnd="5dp"
-                            android:background="@drawable/bg_button_surface"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:includeFontPadding="false"
-                            android:paddingStart="10dp"
-                            android:paddingEnd="10dp"
-                            android:singleLine="true"
-                            android:text="+ Mới"
-                            android:textColor="@color/ide_text_primary"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:id="@+id/btnEditorFind"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:layout_marginEnd="5dp"
-                            android:background="@drawable/bg_button_surface"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:includeFontPadding="false"
-                            android:paddingStart="10dp"
-                            android:paddingEnd="10dp"
-                            android:singleLine="true"
-                            android:text="🔍 Tìm"
-                            android:textColor="@color/ide_text_primary"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:id="@+id/btnEditorSave"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:layout_marginEnd="5dp"
-                            android:background="@drawable/bg_button_primary"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:includeFontPadding="false"
-                            android:paddingStart="10dp"
-                            android:paddingEnd="10dp"
-                            android:singleLine="true"
-                            android:text="💾 Lưu"
-                            android:textColor="@color/ide_text_primary"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/btnEditorRun"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:background="@drawable/bg_button_green"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:includeFontPadding="false"
-                            android:paddingStart="10dp"
-                            android:paddingEnd="10dp"
-                            android:singleLine="true"
-                            android:text="▶ Chạy"
-                            android:textColor="@color/ide_text_primary"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </HorizontalScrollView>
-            </LinearLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/ide_border" />
-
-            <!-- Editor Main Body with Line Numbers (Resizes smoothly with phone keyboard) -->
-            <ScrollView
-                android:id="@+id/editorScrollView"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:background="@color/ide_bg_primary"
-                android:fillViewport="true"
-                android:scrollbars="vertical">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/tvLineNumbers"
-                        android:layout_width="42dp"
-                        android:layout_height="match_parent"
-                        android:background="@color/ide_bg_secondary"
-                        android:fontFamily="monospace"
-                        android:gravity="end|top"
-                        android:lineSpacingExtra="3dp"
-                        android:paddingStart="4dp"
-                        android:paddingTop="10dp"
-                        android:paddingEnd="6dp"
-                        android:paddingBottom="10dp"
-                        android:text="1"
-                        android:textColor="@color/ide_text_secondary"
-                        android:textSize="13sp" />
-
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="match_parent"
-                        android:background="@color/ide_border" />
-
-                    <EditText
-                        android:id="@+id/etCodeEditor"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:background="@android:color/transparent"
-                        android:fontFamily="monospace"
-                        android:gravity="start|top"
-                        android:imeOptions="flagNoExtractUi"
-                        android:inputType="textMultiLine|textNoSuggestions"
-                        android:lineSpacingExtra="3dp"
-                        android:padding="10dp"
-                        android:scrollHorizontally="false"
-                        android:textColor="@color/ide_text_primary"
-                        android:textSize="13sp" />
-                </LinearLayout>
-            </ScrollView>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/ide_border" />
-
-            <!-- Code Symbol Snippet Bar (Thumb-friendly 42dp height) -->
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="42dp"
-                android:background="@color/ide_bg_secondary"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/editorSymbolsContainer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp" />
-            </HorizontalScrollView>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/ide_border" />
-
-            <!-- Editor Footer Status Bar -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="28dp"
-                android:background="@color/ide_bg_secondary"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp">
-
-                <TextView
-                    android:id="@+id/tvEditorStats"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:fontFamily="monospace"
-                    android:includeFontPadding="false"
-                    android:singleLine="true"
-                    android:text="Ln 1, Col 1  |  0 chars"
-                    android:textColor="@color/ide_text_secondary"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/tvEditorLang"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="monospace"
-                    android:includeFontPadding="false"
-                    android:singleLine="true"
-                    android:text="SHELL • UTF-8"
-                    android:textColor="@color/ide_accent_blue"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- ==================== PANE 3: FILE EXPLORER ==================== -->
+        <!-- ==================== PANE: FILE EXPLORER ==================== -->
         <LinearLayout
             android:id="@+id/paneFiles"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:orientation="vertical"
             android:visibility="gone">
 
@@ -682,7 +805,7 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- File Operations Strip (Scrollable on narrow phones) -->
+            <!-- File Operations Strip -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="42dp"
@@ -730,6 +853,23 @@
                         android:singleLine="true"
                         android:text="+ Thư mục"
                         android:textColor="@color/ide_text_primary"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/btnGlobalSearch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:text="🔎 Tìm trong Project"
+                        android:textColor="@color/ide_accent_orange"
                         android:textSize="12sp" />
 
                     <TextView
@@ -782,6 +922,6 @@
                 android:divider="@color/ide_border"
                 android:dividerHeight="1dp" />
         </LinearLayout>
-    </FrameLayout>
+    </LinearLayout>
 
 </LinearLayout>

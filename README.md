@@ -1,43 +1,24 @@
-# TermIDE Studio - Android IDE & Terminal
+# TermIDE Studio v2.0 - Android IDE & Terminal
 
-Ứng dụng **Android IDE & Terminal** (Kotlin + Android Native XML Views) đóng gói thành file `.apk` sẵn sàng cài đặt trên thiết bị Android (API 24+ / Android 7.0 trở lên).
+Ứng dụng **Android IDE & Terminal** (Kotlin + Android Native XML Views) thiết kế chuẩn thích ứng màn hình điện thoại (Mobile Adaptive UI) và đóng gói thành file `.apk` sẵn sàng cài đặt trên thiết bị Android (API 24+ / Android 7.0 đến Android 15+).
 
-## Tính năng chính
+## Tính năng mới trong v2.0.0
 
-### 1. Terminal Emulator đa phiên (`>_ Terminal`)
-- **Multi-Session Shell**: Mở nhiều phiên shell (`#1 bash-1`, `#2 bash-2`, `+ Session`, `✕` đóng phiên) chạy độc lập.
-- **Thực thi lệnh hệ thống & Script**: Chạy trực tiếp `/system/bin/sh` thông qua `ProcessBuilder`, theo dõi thư mục hiện hành (`cd`, `pwd`), hỗ trợ biến môi trường (`export KEY=VALUE`), lịch sử câu lệnh (`history`) và lọc mã màu ANSI.
-- **Thanh phím tắt chuyên dụng (Termux-style Extra Keys Bar)**:
-  - `CTRL+C` (ngắt tiến trình đang chạy), `CLEAR`, `↑` / `↓` (duyệt lịch sử lệnh), `TAB`, `/`, `-`, `|`, `~`, `$`, `&&`, `>`, `ls -la`, `pwd`.
+### 1. Chế độ Chia đôi màn hình (`⬒ Split`: Code Editor + Terminal)
+- Bật/tắt 1 chạm ngay trên thanh tiêu đề để **vừa sửa code ở nửa trên, vừa xem kết quả chạy Terminal trực tiếp ở nửa dưới** mà không cần chuyển tab.
 
-### 2. Trình soạn thảo mã nguồn (`</> Code Editor`)
-- **Syntax Highlighting thời gian thực**: Tô màu từ khóa, chuỗi ký tự, chú thích (`#`, `//`, `/* */`), số, biến (`$VAR`) và lời gọi hàm cho `Shell (.sh)`, `Python (.py)`, `Kotlin (.kt)`, `Java (.java)`, `JavaScript (.js)`, `JSON`, `Markdown`.
-- **Đánh số dòng (Line Numbers Gutter) & Thanh trạng thái**: Hiển thị vị trí con trỏ `Ln / Col`, tổng số ký tự, tổng số dòng và ngôn ngữ hiện tại.
-- **Thanh ký tự code nhanh (Quick Symbol Bar)**: Chèn nhanh `TAB`, `{`, `}`, `(`, `)`, `[`, `]`, `;`, `"`, `'`, `=`, `$`, `#`, `|`, `->`, `#!/system/bin/sh`.
-- **Tìm kiếm & Thay thế (`🔍 Tìm`)**: Tìm vị trí chuỗi hoặc thay thế hàng loạt trong file đang mở.
-- **Chạy trực tiếp 1 chạm (`▶ Chạy` / `▶ Run`)**: Tự động lưu file, cấp quyền thực thi (`+x` cho `.sh`), chuyển sang tab Terminal và thực thi script ngay lập tức.
+### 2. Terminal Emulator hỗ trợ màu ANSI & Tự động hoàn thành (`TAB`)
+- **ANSI Color Rendering (`AnsiParser.kt`)**: Hiển thị đầy đủ bảng màu ANSI 16/256 màu và chữ đậm trong màn hình kết quả Terminal.
+- **Tab Auto-Completion**: Nhấn phím `TAB` trên thanh phím tắt sẽ tự động hoàn thành tên file/thư mục trong thư mục hiện hành hoặc câu lệnh shell.
+- **Sao chép nhanh (`📋 Copy`)**: Sao chép toàn bộ lịch sử xuất Terminal vào Clipboard chỉ với 1 chạm.
 
-### 3. Quản lý dự án & Tập tin (`📁 Files`)
-- **Workspace khởi tạo sẵn**: Tự động tạo thư mục `workspace/` kèm các file mẫu:
-  - `hello.sh`: Script chào mừng và kiểm tra môi trường shell.
-  - `sysinfo.sh`: Script chẩn đoán phần cứng, nhân Linux, Android SDK, RAM & bộ nhớ.
-  - `script.py`: Mẫu mã nguồn Python.
-  - `Main.kt`: Mẫu mã nguồn Kotlin.
-  - `README.md`: Tài liệu hướng dẫn nhanh.
-- **Thao tác tập tin đầy đủ**: Tạo file mới (`+ Tạo File`), tạo thư mục (`+ Thư mục`), điều hướng thư mục cha (`⬆ ..`), mở Terminal tại thư mục hiện tại (`>_ Shell`), đổi tên, xóa, và bật/tắt quyền thực thi (`chmod +x`).
+### 3. Trình soạn thảo Đa Tab (Multi-Tab Code Editor) + Undo/Redo
+- Mở cùng lúc nhiều file trên thanh **Open File Tabs** (`hello.sh`, `sysinfo.sh`, `script.py`, `Main.kt`...) và chuyển đổi tức thì, kèm dấu báo file chưa lưu (`●`).
+- Hỗ trợ **Hoàn tác (`↶` Undo)** và **Làm lại (`↷` Redo)** riêng biệt cho từng tab file.
 
-### 4. Công cụ chẩn đoán nhanh (`⚡ Tools`)
-- Chạy nhanh kiểm tra thông tin hệ thống (`sysinfo.sh`), danh sách tiến trình (`ps`), cấu hình mạng (`ip addr` / `ifconfig`), dung lượng ổ đĩa (`df -h`), biến môi trường (`env`), và tăng/giảm cỡ chữ (`10sp` – `22sp`).
-
-## Cấu trúc dự án
-
-- `app/src/main/AndroidManifest.xml`: Cấu hình ứng dụng và quyền truy cập.
-- `app/src/main/java/com/termide/android/MainActivity.kt`: Giao diện chính và điều phối giữa 3 phân hệ Terminal, Code Editor, File Explorer.
-- `app/src/main/java/com/termide/android/TerminalSession.kt`: Quản lý phiên shell, tiến trình nền, lịch sử lệnh và thư mục làm việc.
-- `app/src/main/java/com/termide/android/SyntaxHighlighter.kt`: Bộ tô màu cú pháp và sinh lệnh chạy tự động theo ngôn ngữ.
-- `app/src/main/java/com/termide/android/WorkspaceInitializer.kt`: Khởi tạo workspace mặc định và các script mẫu.
-- `app/src/main/java/com/termide/android/FileAdapter.kt`: Hiển thị danh sách tập tin/thư mục kèm quyền `rwx`, dung lượng và ngày sửa đổi.
-- `app/src/main/res/layout/activity_main.xml`: Bố cục giao diện chuẩn Dark IDE.
+### 4. Tìm kiếm toàn bộ Project (`🔎 Tìm trong Project`) & Đổi Theme IDE (`🎨`)
+- Tìm kiếm từ khóa xuyên suốt tất cả các file trong `workspace/` và nhảy thẳng tới dòng khớp khi chạm vào kết quả.
+- Chuyển đổi giữa 4 giao diện màu sắc (**GitHub Dark**, **Dracula Purple**, **Monokai Warm**, **Matrix OLED Black**) và tự động lưu cấu hình.
 
 ## Hướng dẫn Build APK
 
@@ -46,5 +27,5 @@
 ```
 
 File APK sau khi build nằm tại:
-- Bản Debug: `app/build/outputs/apk/debug/app-debug.apk`
-- Bản Release (đã ký): `app/build/outputs/apk/release/app-release.apk`
+- Bản Release (đã ký v2): `TermIDE-release.apk` (`app/build/outputs/apk/release/app-release.apk`)
+- Bản Debug: `TermIDE-debug.apk` (`app/build/outputs/apk/debug/app-debug.apk`)

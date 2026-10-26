@@ -2,6 +2,12 @@ package com.termide.android
 
 import java.io.File
 
+data class WorkspaceSearchResult(
+    val file: File,
+    val lineNumber: Int,
+    val linePreview: String
+)
+
 object WorkspaceInitializer {
 
     fun ensureDefaultWorkspace(workspaceDir: File): File {
@@ -14,18 +20,18 @@ object WorkspaceInitializer {
             helloScript.writeText(
                 """
                 #!/system/bin/sh
-                # TermIDE Studio - Welcome Script
-                echo "=========================================="
-                echo "🚀 Welcome to TermIDE Studio for Android!"
-                echo "=========================================="
+                # TermIDE Studio v2.0 - Welcome Script
+                printf "\033[1;36m==========================================\033[0m\n"
+                printf "\033[1;32m🚀 Welcome to TermIDE Studio v2.0!\033[0m\n"
+                printf "\033[1;36m==========================================\033[0m\n"
                 echo "Date      : $(date)"
                 echo "User      : $(whoami 2>/dev/null || id -un 2>/dev/null || echo 'android')"
                 echo "Directory : $(pwd)"
                 echo "Kernel    : $(uname -s -r -m)"
                 echo ""
-                echo "Listing workspace files:"
+                printf "\033[1;33mListing workspace files:\033[0m\n"
                 ls -la
-                echo "=========================================="
+                printf "\033[1;36m==========================================\033[0m\n"
                 """.trimIndent() + "\n"
             )
             helloScript.setExecutable(true)
@@ -37,10 +43,10 @@ object WorkspaceInitializer {
                 """
                 #!/system/bin/sh
                 # System Diagnostics & Hardware Report
-                echo "=== [1] KERNEL & ARCHITECTURE ==="
+                printf "\033[1;32m=== [1] KERNEL & ARCHITECTURE ===\033[0m\n"
                 uname -a
                 echo ""
-                echo "=== [2] ANDROID BUILD PROPERTIES ==="
+                printf "\033[1;32m=== [2] ANDROID BUILD PROPERTIES ===\033[0m\n"
                 if command -v getprop >/dev/null 2>&1; then
                     echo "Device Model : $(getprop ro.product.model)"
                     echo "Brand        : $(getprop ro.product.brand)"
@@ -50,14 +56,34 @@ object WorkspaceInitializer {
                     echo "Running in standard POSIX environment"
                 fi
                 echo ""
-                echo "=== [3] MEMORY INFO ==="
+                printf "\033[1;32m=== [3] MEMORY INFO ===\033[0m\n"
                 head -n 6 /proc/meminfo 2>/dev/null || free -h 2>/dev/null
                 echo ""
-                echo "=== [4] STORAGE USAGE ==="
+                printf "\033[1;32m=== [4] STORAGE USAGE ===\033[0m\n"
                 df -h . 2>/dev/null || df .
                 """.trimIndent() + "\n"
             )
             sysInfoScript.setExecutable(true)
+        }
+
+        val benchmarkScript = File(workspaceDir, "benchmark.sh")
+        if (!benchmarkScript.exists()) {
+            benchmarkScript.writeText(
+                """
+                #!/system/bin/sh
+                # Quick Shell Loop & I/O Benchmark
+                printf "\033[1;35m⚡ Running TermIDE Quick Benchmark...\033[0m\n"
+                START_TS=$(date +%s)
+                i=0
+                while [ ${'$'}i -lt 5000 ]; do
+                    i=$((i + 1))
+                done
+                END_TS=$(date +%s)
+                ELAPSED=$((END_TS - START_TS))
+                printf "\033[1;32m✓ Completed 5,000 shell arithmetic iterations in %ds\033[0m\n" "${'$'}ELAPSED"
+                """.trimIndent() + "\n"
+            )
+            benchmarkScript.setExecutable(true)
         }
 
         val pythonSample = File(workspaceDir, "script.py")
@@ -95,8 +121,8 @@ object WorkspaceInitializer {
                 fun main() {
                     val info = ProjectInfo(
                         name = "TermIDE Studio",
-                        version = "1.0.0",
-                        features = listOf("Interactive Shell", "Code Editor", "File Explorer")
+                        version = "2.0.0",
+                        features = listOf("ANSI Shell", "Multi-Tab Code Editor", "Split View", "File Explorer")
                     )
                     println("Loaded: ${'$'}{info.name} v${'$'}{info.version}")
                 }
@@ -108,16 +134,46 @@ object WorkspaceInitializer {
         if (!readmeFile.exists()) {
             readmeFile.writeText(
                 """
-                # TermIDE Studio (Android IDE & Terminal)
+                # TermIDE Studio v2.0 (Android IDE & Terminal)
 
-                ## Features
-                1. **Terminal Emulator**: Multi-session POSIX/Android shell with extra key bar (`ESC`, `TAB`, `CTRL+C`, history arrows).
-                2. **Code Editor**: Syntax highlighting, line numbers, quick code symbols, Find & Replace, and 1-click `▶ Run`.
-                3. **File Manager**: Browse directories, create files/folders, toggle `+x` executable permissions, and open terminal in any folder.
+                ## What's New in v2.0
+                1. **ANSI Color Terminal + Tab Auto-Completion**: Colored terminal output, clipboard copy (`📋`), and filename/command completion (`TAB`).
+                2. **Multi-Tab Code Editor + Undo/Redo**: Open multiple files in tabs, Undo (`↶`) / Redo (`↷`), and smart auto-indentation.
+                3. **Split-Screen Mode (`⬒ Split`)**: View and run terminal commands right underneath the Code Editor on one screen.
+                4. **Global Workspace Search & Themes**: Search across all project files and switch between IDE color themes.
                 """.trimIndent() + "\n"
             )
         }
 
         return helloScript
+    }
+
+    fun searchInWorkspace(rootDir: File, query: String, maxResults: Int = 50): List<WorkspaceSearchResult> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty() || !rootDir.exists()) return emptyList()
+
+        val results = mutableListOf<WorkspaceSearchResult>()
+        rootDir.walkTopDown()
+            .filter { it.isFile && it.length() < 512_000 }
+            .forEach { file ->
+                if (results.size >= maxResults) return@forEach
+                try {
+                    file.useLines { lines ->
+                        lines.forEachIndexed { idx, line ->
+                            if (results.size < maxResults && line.contains(trimmed, ignoreCase = true)) {
+                                results.add(
+                                    WorkspaceSearchResult(
+                                        file = file,
+                                        lineNumber = idx + 1,
+                                        linePreview = line.trim().take(80)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                } catch (_: Exception) {
+                }
+            }
+        return results
     }
 }
