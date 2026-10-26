@@ -3,34 +3,38 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@color/ide_bg_primary"
+    android:descendantFocusability="blocksDescendants"
     android:gravity="center_vertical"
+    android:minHeight="56dp"
     android:orientation="horizontal"
     android:paddingStart="12dp"
-    android:paddingTop="10dp"
+    android:paddingTop="8dp"
     android:paddingEnd="12dp"
-    android:paddingBottom="10dp">
+    android:paddingBottom="8dp">
 
     <TextView
         android:id="@+id/tvFileIcon"
-        android:layout_width="32dp"
+        android:layout_width="34dp"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:text="📄"
-        android:textSize="18sp" />
+        android:textSize="20sp" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="8dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
         <TextView
             android:id="@+id/tvFileName"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="middle"
             android:fontFamily="monospace"
+            android:includeFontPadding="false"
             android:singleLine="true"
             android:text="hello.sh"
             android:textColor="@color/ide_text_primary"
@@ -39,26 +43,30 @@
 
         <TextView
             android:id="@+id/tvFileMeta"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
             android:fontFamily="monospace"
-            android:text="rwxr-xr-x • 1.2 KB • 2026-10-26"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="-rwx • 1.2 KB • 2026-10-26"
             android:textColor="@color/ide_text_secondary"
             android:textSize="11sp" />
     </LinearLayout>
 
     <TextView
         android:id="@+id/tvFileActionHint"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="38dp"
+        android:layout_height="34dp"
         android:background="@drawable/bg_key_chip"
+        android:clickable="true"
+        android:focusable="true"
         android:fontFamily="monospace"
-        android:paddingStart="8dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="8dp"
-        android:paddingBottom="4dp"
+        android:gravity="center"
+        android:includeFontPadding="false"
         android:text="•••"
         android:textColor="@color/ide_accent_blue"
-        android:textSize="12sp"
+        android:textSize="13sp"
         android:textStyle="bold" />
 </LinearLayout>

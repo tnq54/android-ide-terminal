@@ -1,84 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/ide_bg_primary"
+    android:background="@color/ide_bg_secondary"
     android:orientation="vertical">
 
-    <!-- Top App Bar -->
+    <!-- Top App Bar (compact & mobile safe-area aware) -->
     <LinearLayout
+        android:id="@+id/topHeaderBar"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="wrap_content"
         android:background="@color/ide_bg_secondary"
         android:gravity="center_vertical"
+        android:minHeight="48dp"
         android:orientation="horizontal"
         android:paddingStart="12dp"
-        android:paddingEnd="10dp">
+        android:paddingTop="6dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="6dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="monospace"
+            android:includeFontPadding="false"
             android:text="&gt;_"
             android:textColor="@color/ide_accent_green"
-            android:textSize="18sp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
+            android:layout_marginEnd="6dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
             <TextView
                 android:id="@+id/tvAppTitle"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:singleLine="true"
                 android:text="TermIDE Studio"
                 android:textColor="@color/ide_text_primary"
-                android:textSize="15sp"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvSubtitleStatus"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
                 android:ellipsize="middle"
                 android:fontFamily="monospace"
+                android:includeFontPadding="false"
                 android:singleLine="true"
                 android:text="~/workspace"
                 android:textColor="@color/ide_text_secondary"
                 android:textSize="11sp" />
         </LinearLayout>
 
-        <Button
+        <TextView
             android:id="@+id/btnQuickRun"
             android:layout_width="wrap_content"
             android:layout_height="34dp"
             android:layout_marginEnd="6dp"
             android:background="@drawable/bg_button_green"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:singleLine="true"
             android:text="▶ Run"
-            android:textAllCaps="false"
             android:textColor="@color/ide_text_primary"
             android:textSize="12sp"
             android:textStyle="bold" />
 
-        <Button
+        <TextView
             android:id="@+id/btnQuickTools"
             android:layout_width="wrap_content"
             android:layout_height="34dp"
             android:background="@drawable/bg_button_surface"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
+            android:singleLine="true"
             android:text="⚡ Tools"
-            android:textAllCaps="false"
             android:textColor="@color/ide_text_primary"
             android:textSize="12sp" />
     </LinearLayout>
@@ -88,48 +104,64 @@
         android:layout_height="1dp"
         android:background="@color/ide_border" />
 
-    <!-- Navigation Mode Tabs -->
+    <!-- Navigation Mode Tabs (Thumb-friendly height & no text clipping) -->
     <LinearLayout
+        android:id="@+id/navTabsBar"
         android:layout_width="match_parent"
-        android:layout_height="42dp"
+        android:layout_height="44dp"
         android:background="@color/ide_bg_secondary"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="4dp">
+        android:paddingStart="8dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="4dp">
 
-        <Button
+        <TextView
             android:id="@+id/tabBtnTerminal"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginEnd="4dp"
+            android:layout_marginEnd="6dp"
             android:layout_weight="1"
             android:background="@drawable/bg_button_primary"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
             android:text="&gt;_ Terminal"
-            android:textAllCaps="false"
             android:textColor="@color/ide_text_primary"
             android:textSize="13sp"
             android:textStyle="bold" />
 
-        <Button
+        <TextView
             android:id="@+id/tabBtnEditor"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginEnd="4dp"
+            android:layout_marginEnd="6dp"
             android:layout_weight="1"
             android:background="@drawable/bg_button_surface"
-            android:text="&lt;/&gt; Code Editor"
-            android:textAllCaps="false"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="&lt;/&gt; Editor"
             android:textColor="@color/ide_text_secondary"
             android:textSize="13sp" />
 
-        <Button
+        <TextView
             android:id="@+id/tabBtnFiles"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="@drawable/bg_button_surface"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
             android:text="📁 Files"
-            android:textAllCaps="false"
             android:textColor="@color/ide_text_secondary"
             android:textSize="13sp" />
     </LinearLayout>
@@ -139,11 +171,12 @@
         android:layout_height="1dp"
         android:background="@color/ide_border" />
 
-    <!-- Content Container -->
+    <!-- Main Content Area -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:background="@color/ide_bg_primary">
 
         <!-- ==================== PANE 1: TERMINAL ==================== -->
         <LinearLayout
@@ -156,7 +189,7 @@
             <!-- Session Strip -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="38dp"
+                android:layout_height="40dp"
                 android:background="@color/ide_bg_secondary"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -177,35 +210,39 @@
                         android:orientation="horizontal" />
                 </HorizontalScrollView>
 
-                <Button
+                <TextView
                     android:id="@+id/btnNewSession"
                     android:layout_width="wrap_content"
-                    android:layout_height="28dp"
+                    android:layout_height="30dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/bg_button_surface"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:text="+ Session"
-                    android:textAllCaps="false"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:singleLine="true"
+                    android:text="+ Phiên"
                     android:textColor="@color/ide_accent_green"
-                    android:textSize="11sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-                <Button
+                <TextView
                     android:id="@+id/btnCloseSession"
-                    android:layout_width="wrap_content"
-                    android:layout_height="28dp"
+                    android:layout_width="32dp"
+                    android:layout_height="30dp"
                     android:layout_marginStart="4dp"
                     android:background="@drawable/bg_button_surface"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
                     android:text="✕"
-                    android:textAllCaps="false"
                     android:textColor="@color/ide_accent_red"
-                    android:textSize="11sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <View
@@ -221,12 +258,15 @@
                 android:layout_weight="1"
                 android:background="@color/ide_bg_primary"
                 android:fillViewport="true"
-                android:padding="10dp">
+                android:overScrollMode="always"
+                android:padding="10dp"
+                android:scrollbars="vertical">
 
                 <TextView
                     android:id="@+id/tvTerminalOutput"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:breakStrategy="simple"
                     android:fontFamily="monospace"
                     android:lineSpacingExtra="2dp"
                     android:textColor="@color/ide_text_primary"
@@ -239,10 +279,10 @@
                 android:layout_height="1dp"
                 android:background="@color/ide_border" />
 
-            <!-- Extra Keys Bar (Termux style) -->
+            <!-- Extra Keys Bar (Thumb-friendly 42dp bar for mobile) -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
-                android:layout_height="38dp"
+                android:layout_height="42dp"
                 android:background="@color/ide_bg_secondary"
                 android:scrollbars="none">
 
@@ -252,8 +292,8 @@
                     android:layout_height="match_parent"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp" />
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp" />
             </HorizontalScrollView>
 
             <View
@@ -264,7 +304,7 @@
             <!-- Command Input Bar -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="52dp"
                 android:background="@color/ide_bg_secondary"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -277,6 +317,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
                     android:fontFamily="monospace"
+                    android:includeFontPadding="false"
                     android:text="$"
                     android:textColor="@color/ide_accent_green"
                     android:textSize="16sp"
@@ -285,12 +326,13 @@
                 <EditText
                     android:id="@+id/etCommandInput"
                     android:layout_width="0dp"
-                    android:layout_height="36dp"
+                    android:layout_height="38dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_input_box"
                     android:fontFamily="monospace"
+                    android:gravity="center_vertical"
                     android:hint="@string/terminal_input_hint"
-                    android:imeOptions="actionSend"
+                    android:imeOptions="actionSend|flagNoExtractUi"
                     android:inputType="textNoSuggestions|textVisiblePassword"
                     android:paddingStart="10dp"
                     android:paddingEnd="10dp"
@@ -299,18 +341,34 @@
                     android:textColorHint="@color/ide_text_secondary"
                     android:textSize="13sp" />
 
-                <Button
+                <TextView
+                    android:id="@+id/btnToggleKeyboard"
+                    android:layout_width="36dp"
+                    android:layout_height="38dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_button_surface"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:text="⌨"
+                    android:textColor="@color/ide_text_primary"
+                    android:textSize="15sp" />
+
+                <TextView
                     android:id="@+id/btnSendCommand"
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
+                    android:layout_height="38dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/bg_button_primary"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
                     android:paddingStart="14dp"
                     android:paddingEnd="14dp"
+                    android:singleLine="true"
                     android:text="Chạy"
-                    android:textAllCaps="false"
                     android:textColor="@color/ide_text_primary"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -325,10 +383,10 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Editor Action Bar -->
+            <!-- Editor Action Bar (Responsive for narrow phone width) -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="42dp"
+                android:layout_height="44dp"
                 android:background="@color/ide_bg_secondary"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -339,75 +397,98 @@
                     android:id="@+id/tvEditorFileName"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
                     android:layout_weight="1"
                     android:ellipsize="middle"
                     android:fontFamily="monospace"
+                    android:includeFontPadding="false"
                     android:singleLine="true"
                     android:text="hello.sh"
                     android:textColor="@color/ide_accent_cyan"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
-                <Button
-                    android:id="@+id/btnEditorNew"
+                <HorizontalScrollView
                     android:layout_width="wrap_content"
-                    android:layout_height="30dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="@drawable/bg_button_surface"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:text="+ Mới"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp" />
+                    android:layout_height="match_parent"
+                    android:scrollbars="none">
 
-                <Button
-                    android:id="@+id/btnEditorFind"
-                    android:layout_width="wrap_content"
-                    android:layout_height="30dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="@drawable/bg_button_surface"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:text="🔍 Tìm"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/btnEditorSave"
-                    android:layout_width="wrap_content"
-                    android:layout_height="30dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="@drawable/bg_button_primary"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:text="💾 Lưu"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                        <TextView
+                            android:id="@+id/btnEditorNew"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_button_surface"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:singleLine="true"
+                            android:text="+ Mới"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="12sp" />
 
-                <Button
-                    android:id="@+id/btnEditorRun"
-                    android:layout_width="wrap_content"
-                    android:layout_height="30dp"
-                    android:background="@drawable/bg_button_green"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:text="▶ Chạy"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                        <TextView
+                            android:id="@+id/btnEditorFind"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_button_surface"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:singleLine="true"
+                            android:text="🔍 Tìm"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/btnEditorSave"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_button_primary"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:singleLine="true"
+                            android:text="💾 Lưu"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btnEditorRun"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:background="@drawable/bg_button_green"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:singleLine="true"
+                            android:text="▶ Chạy"
+                            android:textColor="@color/ide_text_primary"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </HorizontalScrollView>
             </LinearLayout>
 
             <View
@@ -415,23 +496,24 @@
                 android:layout_height="1dp"
                 android:background="@color/ide_border" />
 
-            <!-- Editor Main Body with Line Numbers -->
+            <!-- Editor Main Body with Line Numbers (Resizes smoothly with phone keyboard) -->
             <ScrollView
                 android:id="@+id/editorScrollView"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
                 android:background="@color/ide_bg_primary"
-                android:fillViewport="true">
+                android:fillViewport="true"
+                android:scrollbars="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/tvLineNumbers"
-                        android:layout_width="44dp"
+                        android:layout_width="42dp"
                         android:layout_height="match_parent"
                         android:background="@color/ide_bg_secondary"
                         android:fontFamily="monospace"
@@ -439,7 +521,7 @@
                         android:lineSpacingExtra="3dp"
                         android:paddingStart="4dp"
                         android:paddingTop="10dp"
-                        android:paddingEnd="8dp"
+                        android:paddingEnd="6dp"
                         android:paddingBottom="10dp"
                         android:text="1"
                         android:textColor="@color/ide_text_secondary"
@@ -453,14 +535,14 @@
                     <EditText
                         android:id="@+id/etCodeEditor"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:layout_weight="1"
                         android:background="@android:color/transparent"
                         android:fontFamily="monospace"
                         android:gravity="start|top"
+                        android:imeOptions="flagNoExtractUi"
                         android:inputType="textMultiLine|textNoSuggestions"
                         android:lineSpacingExtra="3dp"
-                        android:minHeight="420dp"
                         android:padding="10dp"
                         android:scrollHorizontally="false"
                         android:textColor="@color/ide_text_primary"
@@ -473,10 +555,10 @@
                 android:layout_height="1dp"
                 android:background="@color/ide_border" />
 
-            <!-- Code Symbol Snippet Bar -->
+            <!-- Code Symbol Snippet Bar (Thumb-friendly 42dp height) -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
-                android:layout_height="38dp"
+                android:layout_height="42dp"
                 android:background="@color/ide_bg_secondary"
                 android:scrollbars="none">
 
@@ -486,8 +568,8 @@
                     android:layout_height="match_parent"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp" />
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp" />
             </HorizontalScrollView>
 
             <View
@@ -498,7 +580,7 @@
             <!-- Editor Footer Status Bar -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="26dp"
+                android:layout_height="28dp"
                 android:background="@color/ide_bg_secondary"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -510,7 +592,10 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:ellipsize="end"
                     android:fontFamily="monospace"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
                     android:text="Ln 1, Col 1  |  0 chars"
                     android:textColor="@color/ide_text_secondary"
                     android:textSize="11sp" />
@@ -520,6 +605,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="monospace"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
                     android:text="SHELL • UTF-8"
                     android:textColor="@color/ide_accent_blue"
                     android:textSize="11sp"
@@ -545,20 +632,23 @@
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp">
 
-                <Button
+                <TextView
                     android:id="@+id/btnFileUp"
                     android:layout_width="wrap_content"
-                    android:layout_height="30dp"
-                    android:layout_marginEnd="6dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="8dp"
                     android:background="@drawable/bg_button_surface"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:singleLine="true"
                     android:text="⬆ .."
-                    android:textAllCaps="false"
                     android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvCurrentDirPath"
@@ -567,96 +657,115 @@
                     android:layout_weight="1"
                     android:ellipsize="start"
                     android:fontFamily="monospace"
+                    android:includeFontPadding="false"
                     android:singleLine="true"
-                    android:text="/data/user/0/com.termide.android/files/workspace"
+                    android:text="~/workspace"
                     android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp" />
+                    android:textSize="12sp" />
 
-                <Button
+                <TextView
                     android:id="@+id/btnOpenTermInDir"
                     android:layout_width="wrap_content"
-                    android:layout_height="30dp"
-                    android:layout_marginStart="4dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="8dp"
                     android:background="@drawable/bg_button_primary"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:singleLine="true"
                     android:text="&gt;_ Shell"
-                    android:textAllCaps="false"
                     android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- File Operations Strip -->
-            <LinearLayout
+            <!-- File Operations Strip (Scrollable on narrow phones) -->
+            <HorizontalScrollView
                 android:layout_width="match_parent"
-                android:layout_height="38dp"
+                android:layout_height="42dp"
                 android:background="@color/ide_bg_surface"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp">
+                android:scrollbars="none">
 
-                <Button
-                    android:id="@+id/btnCreateFile"
+                <LinearLayout
                     android:layout_width="wrap_content"
-                    android:layout_height="28dp"
-                    android:layout_marginEnd="6dp"
-                    android:background="@drawable/bg_button_green"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:text="+ Tạo File"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp" />
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp">
 
-                <Button
-                    android:id="@+id/btnCreateFolder"
-                    android:layout_width="wrap_content"
-                    android:layout_height="28dp"
-                    android:layout_marginEnd="6dp"
-                    android:background="@drawable/bg_button_surface"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:text="+ Thư mục"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/btnCreateFile"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_green"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:text="+ Tạo File"
+                        android:textColor="@color/ide_text_primary"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
 
-                <Button
-                    android:id="@+id/btnHomeWorkspace"
-                    android:layout_width="wrap_content"
-                    android:layout_height="28dp"
-                    android:layout_marginEnd="6dp"
-                    android:background="@drawable/bg_button_surface"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:text="🏠 Workspace"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ide_accent_cyan"
-                    android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/btnCreateFolder"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:text="+ Thư mục"
+                        android:textColor="@color/ide_text_primary"
+                        android:textSize="12sp" />
 
-                <Button
-                    android:id="@+id/btnRefreshFiles"
-                    android:layout_width="wrap_content"
-                    android:layout_height="28dp"
-                    android:background="@drawable/bg_button_surface"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:text="🔄 Làm mới"
-                    android:textAllCaps="false"
-                    android:textColor="@color/ide_text_primary"
-                    android:textSize="11sp" />
-            </LinearLayout>
+                    <TextView
+                        android:id="@+id/btnHomeWorkspace"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:text="🏠 Workspace"
+                        android:textColor="@color/ide_accent_cyan"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/btnRefreshFiles"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:text="🔄 Làm mới"
+                        android:textColor="@color/ide_text_primary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </HorizontalScrollView>
 
             <View
                 android:layout_width="match_parent"

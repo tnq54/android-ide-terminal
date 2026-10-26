@@ -2,7 +2,10 @@ package com.termide.android
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -12,8 +15,9 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
-import android.widget.Button
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -36,19 +40,22 @@ class MainActivity : Activity() {
     private var isEditorModified: Boolean = false
     private var isApplyingSyntax: Boolean = false
     private var fontSizeSp: Float = 13f
+    private var activeTabMode: TabMode = TabMode.TERMINAL
 
     // Terminal Sessions
     private val sessions = mutableListOf<TerminalSession>()
     private var activeSessionIndex = 0
     private var nextSessionId = 1
 
-    // Top Bar & Navigation Views
+    // Root & Top Bar Views
+    private lateinit var rootLayout: LinearLayout
+    private lateinit var topHeaderBar: LinearLayout
     private lateinit var tvSubtitleStatus: TextView
-    private lateinit var btnQuickRun: Button
-    private lateinit var btnQuickTools: Button
-    private lateinit var tabBtnTerminal: Button
-    private lateinit var tabBtnEditor: Button
-    private lateinit var tabBtnFiles: Button
+    private lateinit var btnQuickRun: TextView
+    private lateinit var btnQuickTools: TextView
+    private lateinit var tabBtnTerminal: TextView
+    private lateinit var tabBtnEditor: TextView
+    private lateinit var tabBtnFiles: TextView
 
     // Panes
     private lateinit var paneTerminal: LinearLayout
@@ -57,20 +64,21 @@ class MainActivity : Activity() {
 
     // Terminal Views
     private lateinit var sessionTabsContainer: LinearLayout
-    private lateinit var btnNewSession: Button
-    private lateinit var btnCloseSession: Button
+    private lateinit var btnNewSession: TextView
+    private lateinit var btnCloseSession: TextView
     private lateinit var terminalScrollView: ScrollView
     private lateinit var tvTerminalOutput: TextView
     private lateinit var terminalExtraKeysContainer: LinearLayout
     private lateinit var etCommandInput: EditText
-    private lateinit var btnSendCommand: Button
+    private lateinit var btnToggleKeyboard: TextView
+    private lateinit var btnSendCommand: TextView
 
     // Editor Views
     private lateinit var tvEditorFileName: TextView
-    private lateinit var btnEditorNew: Button
-    private lateinit var btnEditorFind: Button
-    private lateinit var btnEditorSave: Button
-    private lateinit var btnEditorRun: Button
+    private lateinit var btnEditorNew: TextView
+    private lateinit var btnEditorFind: TextView
+    private lateinit var btnEditorSave: TextView
+    private lateinit var btnEditorRun: TextView
     private lateinit var tvLineNumbers: TextView
     private lateinit var etCodeEditor: EditText
     private lateinit var editorSymbolsContainer: LinearLayout
@@ -78,13 +86,13 @@ class MainActivity : Activity() {
     private lateinit var tvEditorLang: TextView
 
     // File Explorer Views
-    private lateinit var btnFileUp: Button
+    private lateinit var btnFileUp: TextView
     private lateinit var tvCurrentDirPath: TextView
-    private lateinit var btnOpenTermInDir: Button
-    private lateinit var btnCreateFile: Button
-    private lateinit var btnCreateFolder: Button
-    private lateinit var btnHomeWorkspace: Button
-    private lateinit var btnRefreshFiles: Button
+    private lateinit var btnOpenTermInDir: TextView
+    private lateinit var btnCreateFile: TextView
+    private lateinit var btnCreateFolder: TextView
+    private lateinit var btnHomeWorkspace: TextView
+    private lateinit var btnRefreshFiles: TextView
     private lateinit var lvFiles: ListView
     private lateinit var fileAdapter: FileAdapter
 
@@ -97,6 +105,7 @@ class MainActivity : Activity() {
         currentExplorerDir = workspaceDir
 
         bindViews()
+        setupWindowInsetsForMobile()
         setupNavigationTabs()
         setupTerminalUi()
         setupEditorUi()
@@ -111,6 +120,8 @@ class MainActivity : Activity() {
     }
 
     private fun bindViews() {
+        rootLayout = findViewById(R.id.rootLayout)
+        topHeaderBar = findViewById(R.id.topHeaderBar)
         tvSubtitleStatus = findViewById(R.id.tvSubtitleStatus)
         btnQuickRun = findViewById(R.id.btnQuickRun)
         btnQuickTools = findViewById(R.id.btnQuickTools)
@@ -130,6 +141,7 @@ class MainActivity : Activity() {
         tvTerminalOutput = findViewById(R.id.tvTerminalOutput)
         terminalExtraKeysContainer = findViewById(R.id.terminalExtraKeysContainer)
         etCommandInput = findViewById(R.id.etCommandInput)
+        btnToggleKeyboard = findViewById(R.id.btnToggleKeyboard)
         btnSendCommand = findViewById(R.id.btnSendCommand)
 
         tvEditorFileName = findViewById(R.id.tvEditorFileName)
@@ -153,10 +165,60 @@ class MainActivity : Activity() {
         lvFiles = findViewById(R.id.lvFiles)
     }
 
+    /**
+     * Adapts layout to Android phone safe areas (Status Bar, Camera Notch/Cutout,
+     * Gesture Navigation Bar, and Soft Keyboard IME on Android 7 through Android 15+).
+     */
+    private fun setupWindowInsetsForMobile() {
+        rootLayout.setOnApplyWindowInsetsListener { view, insets ->
+            var topInset = 0
+            var bottomInset = 0
+            var leftInset = 0
+            var rightInset = 0
+            var imeVisible = false
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val sysBars = insets.getInsets(
+                    WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
+                )
+                val imeInsets = insets.getInsets(WindowInsets.Type.ime())
+                imeVisible = insets.isVisible(WindowInsets.Type.ime())
+                topInset = sysBars.top
+                leftInset = sysBars.left
+                rightInset = sysBars.right
+                bottomInset = maxOf(sysBars.bottom, imeInsets.bottom)
+            } else {
+                @Suppress("DEPRECATION")
+                run {
+                    topInset = insets.systemWindowInsetTop
+                    leftInset = insets.systemWindowInsetLeft
+                    rightInset = insets.systemWindowInsetRight
+                    bottomInset = insets.systemWindowInsetBottom
+                    imeVisible = bottomInset > dp(120)
+                }
+            }
+
+            view.setPadding(leftInset, topInset, rightInset, bottomInset)
+
+            // On landscape phones when keyboard is open, hide top header to maximize workspace height
+            val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            topHeaderBar.visibility = if (imeVisible && isLandscape) View.GONE else View.VISIBLE
+
+            if (imeVisible && activeTabMode == TabMode.TERMINAL) {
+                terminalScrollView.post {
+                    terminalScrollView.fullScroll(View.FOCUS_DOWN)
+                }
+            }
+
+            insets
+        }
+    }
+
     private fun setupNavigationTabs() {
         tabBtnTerminal.setOnClickListener { switchTab(TabMode.TERMINAL) }
         tabBtnEditor.setOnClickListener { switchTab(TabMode.EDITOR) }
         tabBtnFiles.setOnClickListener {
+            hideSoftKeyboard()
             refreshFileExplorer()
             switchTab(TabMode.FILES)
         }
@@ -171,6 +233,7 @@ class MainActivity : Activity() {
     }
 
     private fun switchTab(mode: TabMode) {
+        activeTabMode = mode
         paneTerminal.visibility = if (mode == TabMode.TERMINAL) View.VISIBLE else View.GONE
         paneEditor.visibility = if (mode == TabMode.EDITOR) View.VISIBLE else View.GONE
         paneFiles.visibility = if (mode == TabMode.FILES) View.VISIBLE else View.GONE
@@ -182,14 +245,14 @@ class MainActivity : Activity() {
         updateTopSubtitle()
     }
 
-    private fun styleTabButton(button: Button, isSelected: Boolean) {
-        button.setBackgroundResource(
+    private fun styleTabButton(tabView: TextView, isSelected: Boolean) {
+        tabView.setBackgroundResource(
             if (isSelected) R.drawable.bg_button_primary else R.drawable.bg_button_surface
         )
-        button.setTextColor(
+        tabView.setTextColor(
             if (isSelected) 0xFFE6EDF3.toInt() else 0xFF8B949E.toInt()
         )
-        button.setTypeface(null, if (isSelected) Typeface.BOLD else Typeface.NORMAL)
+        tabView.setTypeface(null, if (isSelected) Typeface.BOLD else Typeface.NORMAL)
     }
 
     // ==================== TERMINAL LOGIC ====================
@@ -205,6 +268,15 @@ class MainActivity : Activity() {
 
         btnSendCommand.setOnClickListener {
             submitTerminalInput()
+        }
+
+        btnToggleKeyboard.setOnClickListener {
+            etCommandInput.requestFocus()
+            toggleSoftKeyboard(etCommandInput)
+        }
+
+        tvTerminalOutput.setOnClickListener {
+            etCommandInput.requestFocus()
         }
 
         etCommandInput.setOnEditorActionListener { _, actionId, event ->
@@ -256,6 +328,7 @@ class MainActivity : Activity() {
             "$" to { insertIntoCommandInput("$") },
             "&&" to { insertIntoCommandInput(" && ") },
             ">" to { insertIntoCommandInput(" > ") },
+            ".." to { executeCommandInActiveSession("cd .. && pwd") },
             "ls -la" to { executeCommandInActiveSession("ls -la") },
             "pwd" to { executeCommandInActiveSession("pwd") }
         )
@@ -277,7 +350,7 @@ class MainActivity : Activity() {
         val id = nextSessionId++
         val session = TerminalSession(
             id = id,
-            title = "bash-$id",
+            title = "sh-$id",
             initialDir = startDir,
             homeDir = workspaceDir
         )
@@ -308,23 +381,24 @@ class MainActivity : Activity() {
     private fun rebuildSessionTabs() {
         sessionTabsContainer.removeAllViews()
         sessions.forEachIndexed { index, session ->
-            val btn = Button(this).apply {
+            val tabChip = TextView(this).apply {
                 val active = index == activeSessionIndex
-                text = " #${session.id} ${session.title} "
-                isAllCaps = false
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                text = "#${session.id} ${session.title}"
+                includeFontPadding = false
+                gravity = Gravity.CENTER
+                isClickable = true
+                isFocusable = true
+                setSingleLine(true)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTypeface(Typeface.MONOSPACE, if (active) Typeface.BOLD else Typeface.NORMAL)
                 setTextColor(if (active) 0xFFE6EDF3.toInt() else 0xFF8B949E.toInt())
                 setBackgroundResource(
                     if (active) R.drawable.bg_button_primary else R.drawable.bg_button_surface
                 )
-                minWidth = 0
-                minimumWidth = 0
-                minHeight = 0
-                minimumHeight = 0
-                setPadding(dp(10), dp(4), dp(10), dp(4))
+                setPadding(dp(12), 0, dp(12), 0)
                 val lp = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    dp(28)
+                    dp(30)
                 )
                 lp.marginEnd = dp(6)
                 layoutParams = lp
@@ -335,7 +409,7 @@ class MainActivity : Activity() {
                     updateTopSubtitle()
                 }
             }
-            sessionTabsContainer.addView(btn)
+            sessionTabsContainer.addView(tabChip)
         }
     }
 
@@ -350,7 +424,6 @@ class MainActivity : Activity() {
     private fun executeCommandInActiveSession(command: String) {
         val session = currentSession() ?: return
         if (session.isRunning.get()) {
-            // Forward line to running process stdin
             val sent = session.sendStdinLine(command)
             if (sent) {
                 renderTerminalTranscript()
@@ -505,6 +578,7 @@ class MainActivity : Activity() {
 
     private fun runCurrentEditorFileInTerminal() {
         val savedFile = saveCurrentEditorFile(showToast = false) ?: return
+        hideSoftKeyboard()
         val session = currentSession()
         if (session != null && savedFile.parentFile != null) {
             session.changeDirectory(savedFile.parentFile!!)
@@ -646,7 +720,8 @@ class MainActivity : Activity() {
     }
 
     private fun refreshFileExplorer() {
-        tvCurrentDirPath.text = currentExplorerDir.absolutePath
+        val session = currentSession()
+        tvCurrentDirPath.text = session?.formatPath(currentExplorerDir) ?: currentExplorerDir.absolutePath
         val children = currentExplorerDir.listFiles()?.toList().orEmpty()
             .sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
         fileAdapter.updateFiles(children)
@@ -849,37 +924,70 @@ class MainActivity : Activity() {
         tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
         etCodeEditor.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
         tvLineNumbers.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
-        Toast.makeText(this, "Font size: ${fontSizeSp.toInt()}sp", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Cỡ chữ: ${fontSizeSp.toInt()}sp", Toast.LENGTH_SHORT).show()
     }
 
-    // ==================== HELPERS ====================
+    // ==================== MOBILE KEYBOARD & BACK NAVIGATION HELPERS ====================
+
+    private fun toggleSoftKeyboard(targetView: View) {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager ?: return
+        imm.toggleSoftInputFromWindow(targetView.windowToken, InputMethodManager.SHOW_FORCED, 0)
+    }
+
+    private fun hideSoftKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager ?: return
+        val focused = currentFocus ?: rootLayout
+        imm.hideSoftInputFromWindow(focused.windowToken, 0)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        when (activeTabMode) {
+            TabMode.FILES -> {
+                if (currentExplorerDir.canonicalPath != workspaceDir.canonicalPath &&
+                    currentExplorerDir.parentFile?.canRead() == true
+                ) {
+                    currentExplorerDir = currentExplorerDir.parentFile!!
+                    refreshFileExplorer()
+                } else {
+                    switchTab(TabMode.TERMINAL)
+                }
+            }
+            TabMode.EDITOR -> {
+                switchTab(TabMode.TERMINAL)
+            }
+            TabMode.TERMINAL -> {
+                @Suppress("DEPRECATION")
+                super.onBackPressed()
+            }
+        }
+    }
 
     private fun updateTopSubtitle() {
         val session = currentSession()
         val dirDisplay = session?.let { it.formatPath(it.workingDir) } ?: "~/workspace"
         val fileDisplay = currentEditorFile?.name ?: "none"
-        tvSubtitleStatus.text = "dir: $dirDisplay  •  file: $fileDisplay"
+        tvSubtitleStatus.text = "$dirDisplay  •  $fileDisplay"
     }
 
-    private fun makeKeyChipButton(label: String, onClick: () -> Unit): Button {
-        return Button(this).apply {
+    private fun makeKeyChipButton(label: String, onClick: () -> Unit): TextView {
+        return TextView(this).apply {
             text = label
-            isAllCaps = false
+            includeFontPadding = false
+            isClickable = true
+            isFocusable = true
+            setSingleLine(true)
             typeface = Typeface.MONOSPACE
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setTextColor(0xFFE6EDF3.toInt())
             setBackgroundResource(R.drawable.bg_key_chip)
-            minWidth = 0
-            minimumWidth = 0
-            minHeight = 0
-            minimumHeight = 0
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(4), dp(10), dp(4))
+            setPadding(dp(12), 0, dp(12), 0)
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                dp(28)
+                dp(32)
             )
-            lp.marginEnd = dp(5)
+            lp.marginEnd = dp(6)
             layoutParams = lp
             setOnClickListener { onClick() }
         }
