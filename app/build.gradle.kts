@@ -11,8 +11,8 @@ android {
         applicationId = "com.termide.android"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "2.0.0"
+        versionCode = 4
+        versionName = "3.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -54,5 +54,6 @@ android {
 }
 
 dependencies {
+    implementation("com.github.mwiede:jsch:0.2.20")
     testImplementation("junit:junit:4.13.2")
 }

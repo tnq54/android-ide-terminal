@@ -8,6 +8,11 @@ data class WorkspaceSearchResult(
     val linePreview: String
 )
 
+data class CodeSnippet(
+    val title: String,
+    val code: String
+)
+
 object WorkspaceInitializer {
 
     fun ensureDefaultWorkspace(workspaceDir: File): File {
@@ -20,9 +25,9 @@ object WorkspaceInitializer {
             helloScript.writeText(
                 """
                 #!/system/bin/sh
-                # TermIDE Studio v2.0 - Welcome Script
+                # TermIDE Studio v3.0 Full - Welcome Script
                 printf "\033[1;36m==========================================\033[0m\n"
-                printf "\033[1;32m🚀 Welcome to TermIDE Studio v2.0!\033[0m\n"
+                printf "\033[1;32m🚀 Welcome to TermIDE Studio v3.0 Full!\033[0m\n"
                 printf "\033[1;36m==========================================\033[0m\n"
                 echo "Date      : $(date)"
                 echo "User      : $(whoami 2>/dev/null || id -un 2>/dev/null || echo 'android')"
@@ -86,6 +91,41 @@ object WorkspaceInitializer {
             benchmarkScript.setExecutable(true)
         }
 
+        val webPreviewSample = File(workspaceDir, "index.html")
+        if (!webPreviewSample.exists()) {
+            webPreviewSample.writeText(
+                """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                    <title>TermIDE Live Web Preview</title>
+                    <style>
+                        body { background:#0D1117; color:#E6EDF3; font-family:monospace; padding:18px; }
+                        .card { background:#161B22; border:1px solid #30363D; border-radius:10px; padding:16px; }
+                        h2 { color:#3FB950; margin-top:0; }
+                        button { background:#238636; color:#fff; border:none; padding:10px 16px; border-radius:6px; font-weight:bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <h2>🚀 TermIDE Studio Web Preview</h2>
+                        <p id="status">Tap the button below to test JavaScript execution:</p>
+                        <button onclick="runDemo()">Run JS Action</button>
+                    </div>
+                    <script>
+                        function runDemo() {
+                            const now = new Date().toLocaleTimeString();
+                            document.getElementById('status').innerText = '✅ JS Executed at ' + now;
+                        }
+                    </script>
+                </body>
+                </html>
+                """.trimIndent() + "\n"
+            )
+        }
+
         val pythonSample = File(workspaceDir, "script.py")
         if (!pythonSample.exists()) {
             pythonSample.writeText(
@@ -121,8 +161,8 @@ object WorkspaceInitializer {
                 fun main() {
                     val info = ProjectInfo(
                         name = "TermIDE Studio",
-                        version = "2.0.0",
-                        features = listOf("ANSI Shell", "Multi-Tab Code Editor", "Split View", "File Explorer")
+                        version = "3.0.0",
+                        features = listOf("Local & SSH Shell", "Multi-Tab Editor", "Git VCS", "Live Web Preview")
                     )
                     println("Loaded: ${'$'}{info.name} v${'$'}{info.version}")
                 }
@@ -134,13 +174,13 @@ object WorkspaceInitializer {
         if (!readmeFile.exists()) {
             readmeFile.writeText(
                 """
-                # TermIDE Studio v2.0 (Android IDE & Terminal)
+                # TermIDE Studio v3.0 Full Edition
 
-                ## What's New in v2.0
-                1. **ANSI Color Terminal + Tab Auto-Completion**: Colored terminal output, clipboard copy (`📋`), and filename/command completion (`TAB`).
-                2. **Multi-Tab Code Editor + Undo/Redo**: Open multiple files in tabs, Undo (`↶`) / Redo (`↷`), and smart auto-indentation.
-                3. **Split-Screen Mode (`⬒ Split`)**: View and run terminal commands right underneath the Code Editor on one screen.
-                4. **Global Workspace Search & Themes**: Search across all project files and switch between IDE color themes.
+                ## Complete Feature Suite
+                1. **Terminal Emulator + Real SSH/SFTP Client**: Local Android shell + remote SSH server connection (`🌐 SSH`) with saved host profiles, ANSI 16/256 colors, and `TAB` auto-completion.
+                2. **Multi-Tab Code Editor + Live Web Preview**: Open multiple files in tabs, Undo/Redo, Code Snippets (`🧩`), Split-Screen mode (`⬒ Split`), and built-in HTML/JS live preview (`🌐 Preview`).
+                3. **Git & Source Control (`🌿 Git`)**: Built-in Git status, unified colored diff (`+`/`-`), commit snapshots, and commit log (works both with local/SSH git and offline snapshot VCS).
+                4. **File Manager + SFTP Sync + Global Search**: Browse directories, search across all project files, and upload/download files over SFTP.
                 """.trimIndent() + "\n"
             )
         }
@@ -148,12 +188,36 @@ object WorkspaceInitializer {
         return helloScript
     }
 
+    fun getCodeSnippets(): List<CodeSnippet> = listOf(
+        CodeSnippet(
+            "🐚 Shell: For Loop & Conditional",
+            "#!/system/bin/sh\nfor item in *.sh; do\n    if [ -f \"\$item\" ]; then\n        echo \"Found script: \$item\"\n    fi\ndone\n"
+        ),
+        CodeSnippet(
+            "🐚 Shell: Network Port & Ping Check",
+            "#!/system/bin/sh\nHOST=\"8.8.8.8\"\nping -c 3 \"\$HOST\" 2>&1 || echo \"Ping unavailable\"\n"
+        ),
+        CodeSnippet(
+            "🐍 Python: HTTP JSON Request",
+            "import urllib.request\nimport json\n\nurl = 'https://httpbin.org/get'\nwith urllib.request.urlopen(url, timeout=5) as resp:\n    data = json.loads(resp.read().decode())\n    print(json.dumps(data, indent=2))\n"
+        ),
+        CodeSnippet(
+            "🌐 HTML5: Responsive Dark Card Template",
+            "<!DOCTYPE html>\n<html>\n<head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>\n<body style=\"background:#0D1117;color:#E6EDF3;font-family:sans-serif;padding:16px;\">\n  <h2>Hello from TermIDE</h2>\n</body>\n</html>\n"
+        ),
+        CodeSnippet(
+            "🟣 Kotlin: Coroutine / Data Class Template",
+            "data class TaskResult(val id: Int, val success: Boolean, val output: String)\n\nfun main() {\n    val res = TaskResult(1, true, \"OK\")\n    println(res)\n}\n"
+        )
+    )
+
     fun searchInWorkspace(rootDir: File, query: String, maxResults: Int = 50): List<WorkspaceSearchResult> {
         val trimmed = query.trim()
         if (trimmed.isEmpty() || !rootDir.exists()) return emptyList()
 
         val results = mutableListOf<WorkspaceSearchResult>()
         rootDir.walkTopDown()
+            .onEnter { it.name != ".git" && it.name != ".termide_vcs" }
             .filter { it.isFile && it.length() < 512_000 }
             .forEach { file ->
                 if (results.size >= maxResults) return@forEach

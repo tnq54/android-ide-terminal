@@ -2,6 +2,7 @@ package com.termide.android
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -17,6 +18,7 @@ class TerminalSessionTest {
             assertTrue(helloFile.exists())
             assertTrue(File(tempDir, "sysinfo.sh").exists())
             assertTrue(File(tempDir, "benchmark.sh").exists())
+            assertTrue(File(tempDir, "index.html").exists())
             assertTrue(File(tempDir, "script.py").exists())
             assertTrue(File(tempDir, "Main.kt").exists())
             assertTrue(File(tempDir, "README.md").exists())
@@ -24,6 +26,49 @@ class TerminalSessionTest {
             val searchHits = WorkspaceInitializer.searchInWorkspace(tempDir, "Welcome to TermIDE")
             assertTrue(searchHits.isNotEmpty())
             assertEquals("hello.sh", searchHits.first().file.name)
+
+            val snippets = WorkspaceInitializer.getCodeSnippets()
+            assertTrue(snippets.size >= 5)
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testSshProfileSerializationRoundTrip() {
+        val profile = SshProfile(
+            name = "My Ubuntu VPS",
+            host = "192.168.1.50",
+            port = 2222,
+            username = "ubuntu",
+            password = "secret"
+        )
+        val encoded = profile.serialize()
+        val decoded = SshProfile.deserialize(encoded)
+        assertNotNull(decoded)
+        assertEquals("My Ubuntu VPS", decoded?.name)
+        assertEquals("192.168.1.50", decoded?.host)
+        assertEquals(2222, decoded?.port)
+        assertEquals("ubuntu", decoded?.username)
+        assertEquals("secret", decoded?.password)
+    }
+
+    @Test
+    fun testGitSourceControlCommitAndDiff() {
+        val tempDir = Files.createTempDirectory("termide_git_test").toFile()
+        try {
+            val f = File(tempDir, "app.sh")
+            f.writeText("echo v1\n")
+
+            val commitOut = GitSourceControlManager.runGitCommit(tempDir, "initial commit", null)
+            assertTrue(commitOut.isNotEmpty())
+
+            f.writeText("echo v2\n")
+            val diffOut = GitSourceControlManager.runGitDiff(tempDir, null)
+            assertTrue(diffOut.contains("echo v2"))
+
+            val logOut = GitSourceControlManager.runGitLog(tempDir, null)
+            assertTrue(logOut.contains("initial commit"))
         } finally {
             tempDir.deleteRecursively()
         }

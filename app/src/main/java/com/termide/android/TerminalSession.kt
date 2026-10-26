@@ -15,6 +15,8 @@ class TerminalSession(
     var workingDir: File = initialDir
         private set
 
+    var sshManager: SshConnectionManager? = null
+
     val commandHistory: MutableList<String> = mutableListOf()
     var historyCursor: Int = 0
 
@@ -30,11 +32,23 @@ class TerminalSession(
 
     init {
         appendLine("\u001B[36m╔══════════════════════════════════════════════════╗\u001B[0m")
-        appendLine("\u001B[36m║\u001B[0m  \u001B[1;32mTermIDE Studio v2.0\u001B[0m • Session #$id ($title)        \u001B[36m║\u001B[0m")
-        appendLine("\u001B[36m║\u001B[0m  Type \u001B[33m'help'\u001B[0m for built-in IDE terminal commands  \u001B[36m║\u001B[0m")
+        appendLine("\u001B[36m║\u001B[0m  \u001B[1;32mTermIDE Studio v3.0 Full\u001B[0m • Session #$id ($title)   \u001B[36m║\u001B[0m")
+        appendLine("\u001B[36m║\u001B[0m  Local Shell • SSH Client • Git • Web Preview    \u001B[36m║\u001B[0m")
         appendLine("\u001B[36m╚══════════════════════════════════════════════════╝\u001B[0m")
         appendLine("Working directory: \u001B[34m${formatPath(workingDir)}\u001B[0m")
         appendLine("")
+    }
+
+    fun isSshActive(): Boolean = sshManager?.isConnected() == true
+
+    fun getPromptLabel(): String {
+        val ssh = sshManager
+        return if (ssh != null && ssh.isConnected()) {
+            val prof = ssh.activeProfile
+            "${prof?.username ?: "ssh"}@${prof?.host ?: "remote"}:${ssh.remoteWorkingDir}"
+        } else {
+            formatPath(workingDir)
+        }
     }
 
     fun getRawTranscript(): String = synchronized(rawOutputBuffer) {
@@ -104,7 +118,7 @@ class TerminalSession(
         onComplete: (Int) -> Unit
     ) {
         val cmd = rawCommand.trim()
-        appendLine("${formatPath(workingDir)} $ $cmd")
+        appendLine("${getPromptLabel()} $ $cmd")
         onOutputUpdate()
 
         if (cmd.isEmpty()) {
@@ -117,22 +131,55 @@ class TerminalSession(
         }
         historyCursor = commandHistory.size
 
-        // Handle built-in commands
-        when {
-            cmd == "clear" || cmd == "cls" -> {
-                clearTranscript()
+        if (cmd == "clear" || cmd == "cls") {
+            clearTranscript()
+            onOutputUpdate()
+            onComplete(0)
+            return
+        }
+
+        val activeSsh = sshManager
+        if (activeSsh != null && activeSsh.isConnected()) {
+            if (cmd == "exit" || cmd == "logout") {
+                activeSsh.disconnect()
+                title = "sh-$id"
+                appendLine("\u001B[33m[SSH session closed. Returned to local Android shell]\u001B[0m")
                 onOutputUpdate()
                 onComplete(0)
                 return
             }
+            isRunning.set(true)
+            try {
+                val code = activeSsh.executeRemoteCommand(cmd) { line ->
+                    appendLine(line)
+                    onOutputUpdate()
+                }
+                if (code != 0) {
+                    appendLine("\u001B[31m[Remote Exit code: $code]\u001B[0m")
+                }
+                isRunning.set(false)
+                onOutputUpdate()
+                onComplete(code)
+            } catch (e: Exception) {
+                isRunning.set(false)
+                appendLine("\u001B[31mSSH execution error: ${e.message}\u001B[0m")
+                onOutputUpdate()
+                onComplete(1)
+            }
+            return
+        }
+
+        // Handle built-in local commands
+        when {
             cmd == "help" -> {
-                appendLine("\u001B[1;36mBuilt-in TermIDE Studio v2.0 Commands:\u001B[0m")
+                appendLine("\u001B[1;36mBuilt-in TermIDE Studio v3.0 Commands:\u001B[0m")
                 appendLine("  \u001B[32mhelp\u001B[0m              Show this help message")
                 appendLine("  \u001B[32mclear / cls\u001B[0m       Clear terminal screen")
                 appendLine("  \u001B[32mcd <path>\u001B[0m         Change working directory (~ for workspace)")
                 appendLine("  \u001B[32mpwd\u001B[0m               Print working directory")
                 appendLine("  \u001B[32mexport KEY=VAL\u001B[0m    Set session environment variable")
                 appendLine("  \u001B[32mhistory\u001B[0m           Show command history")
+                appendLine("  \u001B[32mgit status/diff\u001B[0m   Run Git / Workspace VCS commands")
                 appendLine("  \u001B[32msh <file.sh>\u001B[0m      Execute shell script in workspace")
                 appendLine("")
                 onOutputUpdate()

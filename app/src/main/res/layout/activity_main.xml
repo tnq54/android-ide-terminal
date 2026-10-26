@@ -45,7 +45,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:singleLine="true"
-                android:text="TermIDE Studio v2.0"
+                android:text="TermIDE Studio v3.0 Full"
                 android:textColor="@color/ide_text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -122,7 +122,7 @@
         android:layout_height="1dp"
         android:background="@color/ide_border" />
 
-    <!-- Navigation Mode Tabs (Thumb-friendly height & no text clipping) -->
+    <!-- Navigation Mode Tabs (4 Full IDE Tabs: Terminal, Editor, Files, Git) -->
     <LinearLayout
         android:id="@+id/navTabsBar"
         android:layout_width="match_parent"
@@ -130,16 +130,16 @@
         android:background="@color/ide_bg_secondary"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="8dp"
+        android:paddingStart="6dp"
         android:paddingTop="4dp"
-        android:paddingEnd="8dp"
+        android:paddingEnd="6dp"
         android:paddingBottom="4dp">
 
         <TextView
             android:id="@+id/tabBtnTerminal"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginEnd="6dp"
+            android:layout_marginEnd="4dp"
             android:layout_weight="1"
             android:background="@drawable/bg_button_primary"
             android:clickable="true"
@@ -147,16 +147,16 @@
             android:gravity="center"
             android:includeFontPadding="false"
             android:singleLine="true"
-            android:text="&gt;_ Terminal"
+            android:text="&gt;_ Term"
             android:textColor="@color/ide_text_primary"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tabBtnEditor"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginEnd="6dp"
+            android:layout_marginEnd="4dp"
             android:layout_weight="1"
             android:background="@drawable/bg_button_surface"
             android:clickable="true"
@@ -164,14 +164,15 @@
             android:gravity="center"
             android:includeFontPadding="false"
             android:singleLine="true"
-            android:text="&lt;/&gt; Editor"
+            android:text="&lt;/&gt; Code"
             android:textColor="@color/ide_text_secondary"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
 
         <TextView
             android:id="@+id/tabBtnFiles"
             android:layout_width="0dp"
             android:layout_height="match_parent"
+            android:layout_marginEnd="4dp"
             android:layout_weight="1"
             android:background="@drawable/bg_button_surface"
             android:clickable="true"
@@ -181,7 +182,22 @@
             android:singleLine="true"
             android:text="📁 Files"
             android:textColor="@color/ide_text_secondary"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tabBtnGit"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/bg_button_surface"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="🌿 Git"
+            android:textColor="@color/ide_text_secondary"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <View
@@ -252,7 +268,7 @@
                 android:layout_height="1dp"
                 android:background="@color/ide_border" />
 
-            <!-- Editor Action Bar (Responsive for narrow phone width) -->
+            <!-- Editor Action Bar -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
@@ -319,6 +335,40 @@
                             android:textStyle="bold" />
 
                         <TextView
+                            android:id="@+id/btnEditorSnippets"
+                            android:layout_width="wrap_content"
+                            android:layout_height="30dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_button_surface"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:singleLine="true"
+                            android:text="🧩 Mẫu"
+                            android:textColor="@color/ide_accent_purple"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/btnEditorPreview"
+                            android:layout_width="wrap_content"
+                            android:layout_height="30dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_button_surface"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:singleLine="true"
+                            android:text="🌐 Web"
+                            android:textColor="@color/ide_accent_cyan"
+                            android:textSize="11sp" />
+
+                        <TextView
                             android:id="@+id/btnEditorNew"
                             android:layout_width="wrap_content"
                             android:layout_height="30dp"
@@ -328,8 +378,8 @@
                             android:focusable="true"
                             android:gravity="center"
                             android:includeFontPadding="false"
-                            android:paddingStart="9dp"
-                            android:paddingEnd="9dp"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
                             android:singleLine="true"
                             android:text="+ Mới"
                             android:textColor="@color/ide_text_primary"
@@ -345,8 +395,8 @@
                             android:focusable="true"
                             android:gravity="center"
                             android:includeFontPadding="false"
-                            android:paddingStart="9dp"
-                            android:paddingEnd="9dp"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
                             android:singleLine="true"
                             android:text="🔍 Tìm"
                             android:textColor="@color/ide_text_primary"
@@ -555,6 +605,24 @@
                 </HorizontalScrollView>
 
                 <TextView
+                    android:id="@+id/btnSshConnect"
+                    android:layout_width="wrap_content"
+                    android:layout_height="28dp"
+                    android:layout_marginStart="4dp"
+                    android:background="@drawable/bg_button_surface"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:singleLine="true"
+                    android:text="🌐 SSH"
+                    android:textColor="@color/ide_accent_orange"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
                     android:id="@+id/btnCopyTerminal"
                     android:layout_width="wrap_content"
                     android:layout_height="28dp"
@@ -581,8 +649,8 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:includeFontPadding="false"
-                    android:paddingStart="9dp"
-                    android:paddingEnd="9dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
                     android:singleLine="true"
                     android:text="+ Phiên"
                     android:textColor="@color/ide_accent_green"
@@ -591,7 +659,7 @@
 
                 <TextView
                     android:id="@+id/btnCloseSession"
-                    android:layout_width="30dp"
+                    android:layout_width="28dp"
                     android:layout_height="28dp"
                     android:layout_marginStart="4dp"
                     android:background="@drawable/bg_button_surface"
@@ -640,7 +708,7 @@
                 android:layout_height="1dp"
                 android:background="@color/ide_border" />
 
-            <!-- Extra Keys Bar (Thumb-friendly 40dp bar for mobile) -->
+            <!-- Extra Keys Bar -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
@@ -921,6 +989,179 @@
                 android:background="@color/ide_bg_primary"
                 android:divider="@color/ide_border"
                 android:dividerHeight="1dp" />
+        </LinearLayout>
+
+        <!-- ==================== PANE: GIT & SOURCE CONTROL ==================== -->
+        <LinearLayout
+            android:id="@+id/paneGit"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Git Operations Strip -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@color/ide_bg_secondary"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp">
+
+                    <TextView
+                        android:id="@+id/btnGitStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_primary"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:text="📊 Status"
+                        android:textColor="@color/ide_text_primary"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnGitDiff"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:text="📝 Diff (+/-)"
+                        android:textColor="@color/ide_accent_cyan"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/btnGitLog"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:text="📜 Lịch sử Commit"
+                        android:textColor="@color/ide_accent_purple"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/btnGitBranch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:text="🌿 Branch / Remote"
+                        android:textColor="@color/ide_accent_orange"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </HorizontalScrollView>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/ide_border" />
+
+            <!-- Git Diff & Status Console -->
+            <ScrollView
+                android:id="@+id/gitScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@color/ide_bg_primary"
+                android:fillViewport="true"
+                android:padding="12dp">
+
+                <TextView
+                    android:id="@+id/tvGitOutput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="2dp"
+                    android:textColor="@color/ide_text_primary"
+                    android:textIsSelectable="true"
+                    android:textSize="13sp" />
+            </ScrollView>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/ide_border" />
+
+            <!-- Quick Commit Input Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@color/ide_bg_secondary"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingEnd="8dp">
+
+                <EditText
+                    android:id="@+id/etGitCommitMsg"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input_box"
+                    android:fontFamily="monospace"
+                    android:gravity="center_vertical"
+                    android:hint="Nhập nội dung commit (vd: feat: update script)..."
+                    android:imeOptions="actionDone|flagNoExtractUi"
+                    android:inputType="text"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:singleLine="true"
+                    android:textColor="@color/ide_text_primary"
+                    android:textColorHint="@color/ide_text_secondary"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/btnGitCommitNow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_button_green"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:singleLine="true"
+                    android:text="✅ Commit"
+                    android:textColor="@color/ide_text_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 

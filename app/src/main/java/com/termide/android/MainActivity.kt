@@ -1,5 +1,6 @@
 package com.termide.android
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.ClipData
@@ -12,6 +13,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.InputType
 import android.text.TextWatcher
 import android.util.TypedValue
 import android.view.Gravity
@@ -20,6 +22,9 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -42,6 +47,7 @@ class MainActivity : Activity() {
     private var fontSizeSp: Float = 13f
     private var activeTabMode: TabMode = TabMode.TERMINAL
     private var isSplitMode: Boolean = false
+    private var autoSaveEnabled: Boolean = true
 
     // Multi-Tab Editor State
     private val editorTabs = mutableListOf<EditorTabDocument>()
@@ -62,15 +68,18 @@ class MainActivity : Activity() {
     private lateinit var tabBtnTerminal: TextView
     private lateinit var tabBtnEditor: TextView
     private lateinit var tabBtnFiles: TextView
+    private lateinit var tabBtnGit: TextView
 
     // Panes
     private lateinit var paneTerminal: LinearLayout
     private lateinit var paneEditor: LinearLayout
     private lateinit var paneFiles: LinearLayout
+    private lateinit var paneGit: LinearLayout
     private lateinit var splitPaneDivider: View
 
     // Terminal Views
     private lateinit var sessionTabsContainer: LinearLayout
+    private lateinit var btnSshConnect: TextView
     private lateinit var btnCopyTerminal: TextView
     private lateinit var btnNewSession: TextView
     private lateinit var btnCloseSession: TextView
@@ -87,6 +96,8 @@ class MainActivity : Activity() {
     private lateinit var tvEditorFileName: TextView
     private lateinit var btnEditorUndo: TextView
     private lateinit var btnEditorRedo: TextView
+    private lateinit var btnEditorSnippets: TextView
+    private lateinit var btnEditorPreview: TextView
     private lateinit var btnEditorNew: TextView
     private lateinit var btnEditorFind: TextView
     private lateinit var btnEditorSave: TextView
@@ -110,6 +121,15 @@ class MainActivity : Activity() {
     private lateinit var lvFiles: ListView
     private lateinit var fileAdapter: FileAdapter
 
+    // Git Views
+    private lateinit var btnGitStatus: TextView
+    private lateinit var btnGitDiff: TextView
+    private lateinit var btnGitLog: TextView
+    private lateinit var btnGitBranch: TextView
+    private lateinit var tvGitOutput: TextView
+    private lateinit var etGitCommitMsg: EditText
+    private lateinit var btnGitCommitNow: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -124,17 +144,19 @@ class MainActivity : Activity() {
         setupTerminalUi()
         setupEditorUi()
         setupFileExplorerUi()
+        setupGitUi()
         restoreSavedPreferences()
 
         // Create initial terminal session
         createNewTerminalSession(workspaceDir)
         // Pre-open starter files in multi-tab editor
         openFileInEditor(starterScript, switchToEditorTab = false)
-        val sysInfo = File(workspaceDir, "sysinfo.sh")
-        if (sysInfo.exists()) {
-            openFileInEditor(sysInfo, switchToEditorTab = false)
-            switchToEditorTab(0)
+        listOf("index.html", "sysinfo.sh", "script.py").forEach { name ->
+            val f = File(workspaceDir, name)
+            if (f.exists()) openFileInEditor(f, switchToEditorTab = false)
         }
+        switchToEditorTab(0)
+
         // Load file explorer list
         refreshFileExplorer()
     }
@@ -150,13 +172,16 @@ class MainActivity : Activity() {
         tabBtnTerminal = findViewById(R.id.tabBtnTerminal)
         tabBtnEditor = findViewById(R.id.tabBtnEditor)
         tabBtnFiles = findViewById(R.id.tabBtnFiles)
+        tabBtnGit = findViewById(R.id.tabBtnGit)
 
         paneTerminal = findViewById(R.id.paneTerminal)
         paneEditor = findViewById(R.id.paneEditor)
         paneFiles = findViewById(R.id.paneFiles)
+        paneGit = findViewById(R.id.paneGit)
         splitPaneDivider = findViewById(R.id.splitPaneDivider)
 
         sessionTabsContainer = findViewById(R.id.sessionTabsContainer)
+        btnSshConnect = findViewById(R.id.btnSshConnect)
         btnCopyTerminal = findViewById(R.id.btnCopyTerminal)
         btnNewSession = findViewById(R.id.btnNewSession)
         btnCloseSession = findViewById(R.id.btnCloseSession)
@@ -172,6 +197,8 @@ class MainActivity : Activity() {
         tvEditorFileName = findViewById(R.id.tvEditorFileName)
         btnEditorUndo = findViewById(R.id.btnEditorUndo)
         btnEditorRedo = findViewById(R.id.btnEditorRedo)
+        btnEditorSnippets = findViewById(R.id.btnEditorSnippets)
+        btnEditorPreview = findViewById(R.id.btnEditorPreview)
         btnEditorNew = findViewById(R.id.btnEditorNew)
         btnEditorFind = findViewById(R.id.btnEditorFind)
         btnEditorSave = findViewById(R.id.btnEditorSave)
@@ -192,6 +219,14 @@ class MainActivity : Activity() {
         btnHomeWorkspace = findViewById(R.id.btnHomeWorkspace)
         btnRefreshFiles = findViewById(R.id.btnRefreshFiles)
         lvFiles = findViewById(R.id.lvFiles)
+
+        btnGitStatus = findViewById(R.id.btnGitStatus)
+        btnGitDiff = findViewById(R.id.btnGitDiff)
+        btnGitLog = findViewById(R.id.btnGitLog)
+        btnGitBranch = findViewById(R.id.btnGitBranch)
+        tvGitOutput = findViewById(R.id.tvGitOutput)
+        etGitCommitMsg = findViewById(R.id.etGitCommitMsg)
+        btnGitCommitNow = findViewById(R.id.btnGitCommitNow)
     }
 
     private fun setupWindowInsetsForMobile() {
@@ -240,6 +275,7 @@ class MainActivity : Activity() {
 
     private fun setupNavigationTabs() {
         tabBtnTerminal.setOnClickListener {
+            if (autoSaveEnabled) saveCurrentEditorFile(showToast = false)
             isSplitMode = false
             switchTab(TabMode.TERMINAL)
         }
@@ -248,10 +284,18 @@ class MainActivity : Activity() {
             switchTab(TabMode.EDITOR)
         }
         tabBtnFiles.setOnClickListener {
+            if (autoSaveEnabled) saveCurrentEditorFile(showToast = false)
             isSplitMode = false
             hideSoftKeyboard()
             refreshFileExplorer()
             switchTab(TabMode.FILES)
+        }
+        tabBtnGit.setOnClickListener {
+            if (autoSaveEnabled) saveCurrentEditorFile(showToast = false)
+            isSplitMode = false
+            hideSoftKeyboard()
+            switchTab(TabMode.GIT)
+            refreshGitStatusView()
         }
 
         btnToggleSplit.setOnClickListener {
@@ -292,6 +336,7 @@ class MainActivity : Activity() {
             splitPaneDivider.visibility = View.VISIBLE
             paneTerminal.visibility = View.VISIBLE
             paneFiles.visibility = View.GONE
+            paneGit.visibility = View.GONE
 
             (paneEditor.layoutParams as? LinearLayout.LayoutParams)?.weight = 1.15f
             (paneTerminal.layoutParams as? LinearLayout.LayoutParams)?.weight = 0.85f
@@ -301,11 +346,13 @@ class MainActivity : Activity() {
             styleTabButton(tabBtnTerminal, true)
             styleTabButton(tabBtnEditor, true)
             styleTabButton(tabBtnFiles, false)
+            styleTabButton(tabBtnGit, false)
         } else {
             splitPaneDivider.visibility = View.GONE
             paneTerminal.visibility = if (activeTabMode == TabMode.TERMINAL) View.VISIBLE else View.GONE
             paneEditor.visibility = if (activeTabMode == TabMode.EDITOR) View.VISIBLE else View.GONE
             paneFiles.visibility = if (activeTabMode == TabMode.FILES) View.VISIBLE else View.GONE
+            paneGit.visibility = if (activeTabMode == TabMode.GIT) View.VISIBLE else View.GONE
 
             (paneEditor.layoutParams as? LinearLayout.LayoutParams)?.weight = 1f
             (paneTerminal.layoutParams as? LinearLayout.LayoutParams)?.weight = 1f
@@ -313,6 +360,7 @@ class MainActivity : Activity() {
             styleTabButton(tabBtnTerminal, activeTabMode == TabMode.TERMINAL)
             styleTabButton(tabBtnEditor, activeTabMode == TabMode.EDITOR)
             styleTabButton(tabBtnFiles, activeTabMode == TabMode.FILES)
+            styleTabButton(tabBtnGit, activeTabMode == TabMode.GIT)
         }
     }
 
@@ -326,9 +374,13 @@ class MainActivity : Activity() {
         tabView.setTypeface(null, if (isSelected) Typeface.BOLD else Typeface.NORMAL)
     }
 
-    // ==================== TERMINAL LOGIC ====================
+    // ==================== TERMINAL & SSH LOGIC ====================
 
     private fun setupTerminalUi() {
+        btnSshConnect.setOnClickListener {
+            showSshManagerDialog()
+        }
+
         btnCopyTerminal.setOnClickListener {
             val transcript = currentSession()?.getTranscript().orEmpty()
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -375,6 +427,191 @@ class MainActivity : Activity() {
         populateTerminalExtraKeys()
     }
 
+    private fun showSshManagerDialog() {
+        val session = currentSession() ?: return
+        val activeSsh = session.sshManager
+        if (activeSsh != null && activeSsh.isConnected()) {
+            val prof = activeSsh.activeProfile
+            AlertDialog.Builder(this)
+                .setTitle("🌐 Đang kết nối SSH")
+                .setMessage("Máy chủ: ${prof?.displayLabel()}\nThư mục từ xa: ${activeSsh.remoteWorkingDir}")
+                .setPositiveButton("Ngắt kết nối SSH") { _, _ ->
+                    activeSsh.disconnect()
+                    session.title = "sh-${session.id}"
+                    session.appendLine("\u001B[33m[Đã ngắt kết nối SSH]\u001B[0m")
+                    rebuildSessionTabs()
+                    renderTerminalTranscript()
+                    updateSshButtonBadge()
+                    updateTopSubtitle()
+                }
+                .setNeutralButton("Tạo phiên SSH mới") { _, _ ->
+                    showSshProfileListOrConnectDialog(createNewSession = true)
+                }
+                .setNegativeButton("Đóng", null)
+                .show()
+            return
+        }
+
+        showSshProfileListOrConnectDialog(createNewSession = false)
+    }
+
+    private fun showSshProfileListOrConnectDialog(createNewSession: Boolean) {
+        val savedProfiles = loadSavedSshProfiles().toMutableList()
+        if (savedProfiles.isEmpty()) {
+            savedProfiles.add(
+                SshProfile(
+                    name = "Termux Local sshd",
+                    host = "127.0.0.1",
+                    port = 8022,
+                    username = "u0_a000"
+                )
+            )
+        }
+
+        val items = (savedProfiles.map { "🔗 ${it.displayLabel()}" } +
+            listOf("➕ Thêm kết nối SSH / VPS mới...", "🗑️ Xóa các cấu hình SSH đã lưu")).toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("🌐 Kết nối SSH / Remote Server")
+            .setItems(items) { _, which ->
+                when {
+                    which < savedProfiles.size -> {
+                        val chosen = savedProfiles[which]
+                        promptSshConnectDialog(chosen, createNewSession)
+                    }
+                    which == savedProfiles.size -> {
+                        promptSshConnectDialog(null, createNewSession)
+                    }
+                    else -> {
+                        getPreferences(Context.MODE_PRIVATE).edit().remove("ssh_profiles").apply()
+                        Toast.makeText(this, "Đã xóa danh sách SSH đã lưu", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    private fun promptSshConnectDialog(prefill: SshProfile?, createNewSession: Boolean) {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(10), dp(18), dp(4))
+        }
+        val etName = EditText(this).apply {
+            hint = "Tên gợi nhớ (vd: VPS Ubuntu / Termux)"
+            setText(prefill?.name ?: "")
+            setSingleLine(true)
+        }
+        val etHost = EditText(this).apply {
+            hint = "Host / IP (vd: 192.168.1.100 hoặc 127.0.0.1)"
+            setText(prefill?.host ?: "")
+            setSingleLine(true)
+        }
+        val etPort = EditText(this).apply {
+            hint = "Port (mặc định: 22, Termux: 8022)"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setText((prefill?.port ?: 22).toString())
+            setSingleLine(true)
+        }
+        val etUser = EditText(this).apply {
+            hint = "Username (vd: root, ubuntu)"
+            setText(prefill?.username ?: "root")
+            setSingleLine(true)
+        }
+        val etPass = EditText(this).apply {
+            hint = "Password (để trống nếu dùng Private Key)"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setText(prefill?.password ?: "")
+            setSingleLine(true)
+        }
+        val etKey = EditText(this).apply {
+            hint = "Hoặc dán PEM/OpenSSH Private Key (tùy chọn)"
+            maxLines = 4
+            setText(prefill?.privateKey ?: "")
+        }
+
+        container.addView(etName)
+        container.addView(etHost)
+        container.addView(etPort)
+        container.addView(etUser)
+        container.addView(etPass)
+        container.addView(etKey)
+
+        AlertDialog.Builder(this)
+            .setTitle("🌐 Thông tin kết nối SSH")
+            .setView(container)
+            .setPositiveButton("Lưu & Kết nối") { _, _ ->
+                val host = etHost.text.toString().trim()
+                if (host.isEmpty()) {
+                    Toast.makeText(this, "Vui lòng nhập địa chỉ Host/IP", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val profile = SshProfile(
+                    name = etName.text.toString().trim().ifEmpty { host },
+                    host = host,
+                    port = etPort.text.toString().toIntOrNull() ?: 22,
+                    username = etUser.text.toString().trim().ifEmpty { "root" },
+                    password = etPass.text.toString(),
+                    privateKey = etKey.text.toString().trim()
+                )
+                saveSshProfile(profile)
+                connectSessionToSsh(profile, createNewSession)
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    private fun connectSessionToSsh(profile: SshProfile, createNewSession: Boolean) {
+        if (createNewSession) {
+            createNewTerminalSession(workspaceDir)
+        }
+        val session = currentSession() ?: return
+        session.appendLine("\u001B[36m⟳ Connecting to SSH ${profile.username}@${profile.host}:${profile.port}...\u001B[0m")
+        renderTerminalTranscript()
+
+        ioExecutor.execute {
+            val manager = SshConnectionManager()
+            val result = manager.connect(profile)
+            mainHandler.post {
+                result.onSuccess { msg ->
+                    session.sshManager = manager
+                    session.title = "ssh:${profile.name}"
+                    session.appendLine("\u001B[1;32m✓ $msg\u001B[0m")
+                    rebuildSessionTabs()
+                    renderTerminalTranscript()
+                    updateSshButtonBadge()
+                    updateTopSubtitle()
+                    executeCommandInActiveSession("uname -a && ls -la")
+                }.onFailure { err ->
+                    session.appendLine("\u001B[31m✗ SSH Connection Failed: ${err.message}\u001B[0m")
+                    renderTerminalTranscript()
+                    updateSshButtonBadge()
+                }
+            }
+        }
+    }
+
+    private fun updateSshButtonBadge() {
+        val active = currentSession()?.isSshActive() == true
+        btnSshConnect.text = if (active) "🌐 SSH: ON" else "🌐 SSH"
+        btnSshConnect.setTextColor(if (active) 0xFF3FB950.toInt() else 0xFFFFA657.toInt())
+    }
+
+    private fun loadSavedSshProfiles(): List<SshProfile> {
+        val raw = getPreferences(Context.MODE_PRIVATE).getString("ssh_profiles", "").orEmpty()
+        if (raw.isBlank()) return emptyList()
+        return raw.split("\u001E").mapNotNull { SshProfile.deserialize(it) }
+    }
+
+    private fun saveSshProfile(profile: SshProfile) {
+        val existing = loadSavedSshProfiles().filterNot {
+            it.host == profile.host && it.port == profile.port && it.username == profile.username
+        }.toMutableList()
+        existing.add(0, profile)
+        val serialized = existing.take(10).joinToString("\u001E") { it.serialize() }
+        getPreferences(Context.MODE_PRIVATE).edit().putString("ssh_profiles", serialized).apply()
+    }
+
     private fun populateTerminalExtraKeys() {
         terminalExtraKeysContainer.removeAllViews()
         val keys = listOf(
@@ -416,7 +653,11 @@ class MainActivity : Activity() {
             ">" to { insertIntoCommandInput(" > ") },
             ".." to { executeCommandInActiveSession("cd .. && pwd") },
             "ls -la" to { executeCommandInActiveSession("ls -la") },
-            "pwd" to { executeCommandInActiveSession("pwd") }
+            "git status" to {
+                isSplitMode = false
+                switchTab(TabMode.GIT)
+                refreshGitStatusView()
+            }
         )
 
         for ((label, action) in keys) {
@@ -444,6 +685,7 @@ class MainActivity : Activity() {
         activeSessionIndex = sessions.lastIndex
         rebuildSessionTabs()
         renderTerminalTranscript()
+        updateSshButtonBadge()
         updateTopSubtitle()
     }
 
@@ -456,11 +698,13 @@ class MainActivity : Activity() {
         }
         val removed = sessions.removeAt(activeSessionIndex)
         removed.interruptCurrentProcess()
+        removed.sshManager?.disconnect()
         if (activeSessionIndex >= sessions.size) {
             activeSessionIndex = sessions.lastIndex
         }
         rebuildSessionTabs()
         renderTerminalTranscript()
+        updateSshButtonBadge()
         updateTopSubtitle()
     }
 
@@ -492,6 +736,7 @@ class MainActivity : Activity() {
                     activeSessionIndex = index
                     rebuildSessionTabs()
                     renderTerminalTranscript()
+                    updateSshButtonBadge()
                     updateTopSubtitle()
                 }
             }
@@ -523,12 +768,14 @@ class MainActivity : Activity() {
                 onOutputUpdate = {
                     mainHandler.post {
                         renderTerminalTranscript()
+                        updateSshButtonBadge()
                         updateTopSubtitle()
                     }
                 },
                 onComplete = {
                     mainHandler.post {
                         renderTerminalTranscript()
+                        updateSshButtonBadge()
                         updateTopSubtitle()
                         refreshFileExplorer()
                     }
@@ -545,7 +792,7 @@ class MainActivity : Activity() {
         }
     }
 
-    // ==================== MULTI-TAB CODE EDITOR LOGIC ====================
+    // ==================== MULTI-TAB CODE EDITOR & WEB PREVIEW LOGIC ====================
 
     private fun currentEditorDoc(): EditorTabDocument? = editorTabs.getOrNull(activeEditorTabIndex)
 
@@ -590,6 +837,14 @@ class MainActivity : Activity() {
             }
         }
 
+        btnEditorSnippets.setOnClickListener {
+            showCodeSnippetsDialog()
+        }
+
+        btnEditorPreview.setOnClickListener {
+            showLiveWebPreviewDialog()
+        }
+
         btnCloseEditorTab.setOnClickListener {
             closeCurrentEditorTab()
         }
@@ -609,6 +864,75 @@ class MainActivity : Activity() {
         btnEditorFind.setOnClickListener {
             showFindReplaceDialog()
         }
+    }
+
+    private fun showCodeSnippetsDialog() {
+        val snippets = WorkspaceInitializer.getCodeSnippets()
+        val titles = snippets.map { it.title }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("🧩 Chèn Mẫu Code Nhanh (Snippets)")
+            .setItems(titles) { _, idx ->
+                val chosen = snippets[idx]
+                val start = etCodeEditor.selectionStart.coerceAtLeast(0)
+                val end = etCodeEditor.selectionEnd.coerceAtLeast(0)
+                etCodeEditor.text.replace(minOf(start, end), maxOf(start, end), chosen.code)
+                etCodeEditor.requestFocus()
+            }
+            .setNegativeButton("Đóng", null)
+            .show()
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun showLiveWebPreviewDialog() {
+        val savedFile = saveCurrentEditorFile(showToast = false)
+        val rawCode = etCodeEditor.text.toString()
+        val ext = savedFile?.extension?.lowercase().orEmpty()
+
+        val htmlContent = when (ext) {
+            "html", "htm", "svg" -> rawCode
+            "js" -> """
+                <!DOCTYPE html>
+                <html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+                <style>body{background:#0D1117;color:#3FB950;font-family:monospace;padding:14px;white-space:pre-wrap;}</style></head>
+                <body><h3>⚡ JS Sandbox Output:</h3><div id="out"></div>
+                <script>
+                const out = document.getElementById('out');
+                console.log = (...args) => { out.innerText += args.join(' ') + '\n'; };
+                console.error = (...args) => { out.innerText += '[ERR] ' + args.join(' ') + '\n'; };
+                try { $rawCode } catch(e) { console.error(e.message); }
+                </script></body></html>
+            """.trimIndent()
+            else -> """
+                <!DOCTYPE html>
+                <html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+                <style>body{background:#0D1117;color:#E6EDF3;font-family:monospace;padding:14px;white-space:pre-wrap;}</style></head>
+                <body>${rawCode.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</body></html>
+            """.trimIndent()
+        }
+
+        val webView = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            webViewClient = WebViewClient()
+            webChromeClient = WebChromeClient()
+            loadDataWithBaseURL(
+                "file://${workspaceDir.absolutePath}/",
+                htmlContent,
+                "text/html",
+                "UTF-8",
+                null
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(420)
+            )
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("🌐 Live Preview: ${savedFile?.name ?: "preview"}")
+            .setView(webView)
+            .setPositiveButton("Đóng", null)
+            .show()
     }
 
     private fun populateEditorSymbolBar() {
@@ -644,7 +968,6 @@ class MainActivity : Activity() {
 
     private fun openFileInEditor(file: File, switchToEditorTab: Boolean, highlightLine: Int? = null) {
         try {
-            // Save cursor of current tab
             currentEditorDoc()?.cursorPosition = etCodeEditor.selectionStart.coerceAtLeast(0)
 
             val existingIdx = editorTabs.indexOfFirst { it.file.canonicalPath == file.canonicalPath }
@@ -783,8 +1106,35 @@ class MainActivity : Activity() {
 
     private fun runCurrentEditorFileInTerminal() {
         val savedFile = saveCurrentEditorFile(showToast = false) ?: return
+        val ext = savedFile.extension.lowercase()
+        if (ext in listOf("html", "htm", "svg")) {
+            showLiveWebPreviewDialog()
+            return
+        }
+
         hideSoftKeyboard()
         val session = currentSession()
+        if (session != null && session.isSshActive()) {
+            // Upload script to remote SSH server and execute remotely
+            val ssh = session.sshManager ?: return
+            if (!isSplitMode) switchTab(TabMode.TERMINAL)
+            session.appendLine("\u001B[36m⟳ Uploading ${savedFile.name} to remote SSH server...\u001B[0m")
+            renderTerminalTranscript()
+            ioExecutor.execute {
+                val upRes = ssh.uploadFileToRemote(savedFile)
+                mainHandler.post {
+                    upRes.onSuccess { remotePath ->
+                        session.appendLine("\u001B[32m✓ Uploaded to $remotePath\u001B[0m")
+                        executeCommandInActiveSession("sh \"$remotePath\"")
+                    }.onFailure { err ->
+                        session.appendLine("\u001B[31m✗ Upload failed: ${err.message}\u001B[0m")
+                        renderTerminalTranscript()
+                    }
+                }
+            }
+            return
+        }
+
         if (session != null && savedFile.parentFile != null) {
             session.changeDirectory(savedFile.parentFile!!)
         }
@@ -869,7 +1219,7 @@ class MainActivity : Activity() {
             .show()
     }
 
-    // ==================== FILE EXPLORER & GLOBAL SEARCH LOGIC ====================
+    // ==================== FILE EXPLORER & SFTP LOGIC ====================
 
     private fun setupFileExplorerUi() {
         fileAdapter = FileAdapter(this, emptyList()) { file, anchorView ->
@@ -972,7 +1322,9 @@ class MainActivity : Activity() {
     private fun refreshFileExplorer() {
         val session = currentSession()
         tvCurrentDirPath.text = session?.formatPath(currentExplorerDir) ?: currentExplorerDir.absolutePath
-        val children = currentExplorerDir.listFiles()?.toList().orEmpty()
+        val children = currentExplorerDir.listFiles()
+            ?.filter { it.name != ".termide_vcs" }
+            ?.toList().orEmpty()
             .sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
         fileAdapter.updateFiles(children)
     }
@@ -984,11 +1336,14 @@ class MainActivity : Activity() {
             popup.menu.add(0, 2, 1, "▶ Chạy trong Terminal")
             val toggleExecLabel = if (file.canExecute()) "🔒 Bỏ quyền thực thi (-x)" else "⚡ Cấp quyền thực thi (+x)"
             popup.menu.add(0, 3, 2, toggleExecLabel)
+            if (currentSession()?.isSshActive() == true) {
+                popup.menu.add(0, 7, 3, "☁️ Upload file lên SSH Server (SFTP)")
+            }
         } else {
             popup.menu.add(0, 4, 0, ">_ Mở Terminal tại đây")
         }
-        popup.menu.add(0, 5, 3, "🏷️ Đổi tên")
-        popup.menu.add(0, 6, 4, "🗑️ Xóa")
+        popup.menu.add(0, 5, 4, "🏷️ Đổi tên")
+        popup.menu.add(0, 6, 5, "🗑️ Xóa")
 
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -1015,6 +1370,19 @@ class MainActivity : Activity() {
                 }
                 5 -> promptRenameFile(file)
                 6 -> confirmDeleteFile(file)
+                7 -> {
+                    val ssh = currentSession()?.sshManager ?: return@setOnMenuItemClickListener true
+                    ioExecutor.execute {
+                        val res = ssh.uploadFileToRemote(file)
+                        mainHandler.post {
+                            res.onSuccess { remotePath ->
+                                Toast.makeText(this, "Đã upload lên $remotePath", Toast.LENGTH_LONG).show()
+                            }.onFailure { err ->
+                                Toast.makeText(this, "Lỗi SFTP: ${err.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }
             }
             true
         }
@@ -1023,7 +1391,7 @@ class MainActivity : Activity() {
 
     private fun promptCreateNewFile(openImmediately: Boolean) {
         val input = EditText(this).apply {
-            hint = "Ví dụ: script.sh, app.py, Main.kt"
+            hint = "Ví dụ: script.sh, app.py, index.html"
             setSingleLine(true)
         }
         AlertDialog.Builder(this)
@@ -1038,6 +1406,7 @@ class MainActivity : Activity() {
                             "sh" -> "#!/system/bin/sh\necho \"Running $name...\"\n"
                             "py" -> "# Python script: $name\nprint(\"Hello from $name\")\n"
                             "kt" -> "fun main() {\n    println(\"Hello from $name\")\n}\n"
+                            "html" -> "<!DOCTYPE html>\n<html>\n<body>\n  <h2>$name</h2>\n</body>\n</html>\n"
                             else -> ""
                         }
                         newFile.writeText(starter)
@@ -1118,56 +1487,178 @@ class MainActivity : Activity() {
             .show()
     }
 
+    // ==================== GIT & SOURCE CONTROL LOGIC ====================
+
+    private fun setupGitUi() {
+        btnGitStatus.setOnClickListener {
+            refreshGitStatusView()
+        }
+
+        btnGitDiff.setOnClickListener {
+            ioExecutor.execute {
+                val raw = GitSourceControlManager.runGitDiff(
+                    currentSession()?.workingDir ?: workspaceDir,
+                    currentSession()?.sshManager
+                )
+                mainHandler.post {
+                    tvGitOutput.text = AnsiParser.parseToSpannable(raw)
+                }
+            }
+        }
+
+        btnGitLog.setOnClickListener {
+            ioExecutor.execute {
+                val raw = GitSourceControlManager.runGitLog(
+                    currentSession()?.workingDir ?: workspaceDir,
+                    currentSession()?.sshManager
+                )
+                mainHandler.post {
+                    tvGitOutput.text = AnsiParser.parseToSpannable(raw)
+                }
+            }
+        }
+
+        btnGitBranch.setOnClickListener {
+            showGitRemoteOperationsDialog()
+        }
+
+        btnGitCommitNow.setOnClickListener {
+            val msg = etGitCommitMsg.text.toString().trim().ifEmpty { "chore: update workspace files" }
+            etGitCommitMsg.setText("")
+            hideSoftKeyboard()
+            ioExecutor.execute {
+                val res = GitSourceControlManager.runGitCommit(
+                    currentSession()?.workingDir ?: workspaceDir,
+                    msg,
+                    currentSession()?.sshManager
+                )
+                val statusAfter = GitSourceControlManager.runGitStatus(
+                    currentSession()?.workingDir ?: workspaceDir,
+                    currentSession()?.sshManager
+                )
+                mainHandler.post {
+                    tvGitOutput.text = AnsiParser.parseToSpannable("$res\n\n$statusAfter")
+                    Toast.makeText(this, "Đã Commit thành công!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun refreshGitStatusView() {
+        ioExecutor.execute {
+            val raw = GitSourceControlManager.runGitStatus(
+                currentSession()?.workingDir ?: workspaceDir,
+                currentSession()?.sshManager
+            )
+            mainHandler.post {
+                tvGitOutput.text = AnsiParser.parseToSpannable(raw)
+            }
+        }
+    }
+
+    private fun showGitRemoteOperationsDialog() {
+        val actions = arrayOf(
+            "🌿 Xem danh sách Branch (git branch -a)",
+            "⬇️ Git Pull (Kéo cập nhật từ Remote)",
+            "⬆️ Git Push (Đẩy commit lên Remote)",
+            "🔗 Clone Git Repository về thư mục hiện tại"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("🌿 Git Branch & Remote")
+            .setItems(actions) { _, idx ->
+                when (idx) {
+                    0 -> {
+                        switchTab(TabMode.TERMINAL)
+                        executeCommandInActiveSession("git branch -a")
+                    }
+                    1 -> {
+                        switchTab(TabMode.TERMINAL)
+                        executeCommandInActiveSession("git pull")
+                    }
+                    2 -> {
+                        switchTab(TabMode.TERMINAL)
+                        executeCommandInActiveSession("git push")
+                    }
+                    3 -> {
+                        val input = EditText(this).apply {
+                            hint = "https://github.com/user/repo.git"
+                            setSingleLine(true)
+                        }
+                        AlertDialog.Builder(this)
+                            .setTitle("Clone Repository")
+                            .setView(input)
+                            .setPositiveButton("Clone") { _, _ ->
+                                val url = input.text.toString().trim()
+                                if (url.isNotEmpty()) {
+                                    switchTab(TabMode.TERMINAL)
+                                    executeCommandInActiveSession("git clone \"$url\"")
+                                }
+                            }
+                            .setNegativeButton("Hủy", null)
+                            .show()
+                    }
+                }
+            }
+            .setNegativeButton("Đóng", null)
+            .show()
+    }
+
     // ==================== QUICK TOOLS & THEME SWITCHER ====================
 
     private fun showQuickToolsDialog() {
+        val autoSaveLabel = if (autoSaveEnabled) "💾 Tự động lưu khi chuyển tab: BẬT" else "💾 Tự động lưu khi chuyển tab: TẮT"
         val options = arrayOf(
+            "🌐 Kết nối SSH / Quản lý VPS từ xa",
             "🚀 Chạy thông tin hệ thống (sysinfo.sh)",
             "⚡ Chạy Benchmark tốc độ Shell (benchmark.sh)",
+            "🌐 Xem trước Web / HTML / JS (Live Preview)",
             "🔎 Tìm kiếm toàn bộ Project (Global Search)",
             "⬒ Bật/Tắt chia đôi màn hình (Split Editor + Terminal)",
-            "🎨 Đổi giao diện màu sắc (IDE Color Theme)",
+            "🎨 Đổi giao diện màu sắc (6 IDE Color Themes)",
+            autoSaveLabel,
             "📊 Danh sách tiến trình đang chạy (ps)",
-            "🌐 Kiểm tra giao diện mạng (ip addr / netstat)",
-            "💾 Kiểm tra dung lượng bộ nhớ (df -h)",
             "🔍 Phóng to cỡ chữ (+1sp)",
             "🔎 Thu nhỏ cỡ chữ (-1sp)",
             "🧹 Xóa màn hình Terminal"
         )
 
         AlertDialog.Builder(this)
-            .setTitle("⚡ TermIDE Studio v2.0 Tools")
+            .setTitle("⚡ TermIDE Studio v3.0 Full Tools")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> {
+                    0 -> showSshManagerDialog()
+                    1 -> {
                         if (!isSplitMode) switchTab(TabMode.TERMINAL)
                         executeCommandInActiveSession("sh \"${File(workspaceDir, "sysinfo.sh").absolutePath}\"")
                     }
-                    1 -> {
+                    2 -> {
                         if (!isSplitMode) switchTab(TabMode.TERMINAL)
                         executeCommandInActiveSession("sh \"${File(workspaceDir, "benchmark.sh").absolutePath}\"")
                     }
-                    2 -> showGlobalWorkspaceSearchDialog()
-                    3 -> {
+                    3 -> showLiveWebPreviewDialog()
+                    4 -> showGlobalWorkspaceSearchDialog()
+                    5 -> {
                         isSplitMode = !isSplitMode
                         applyPaneVisibility()
                     }
-                    4 -> showThemePickerDialog()
-                    5 -> {
+                    6 -> showThemePickerDialog()
+                    7 -> {
+                        autoSaveEnabled = !autoSaveEnabled
+                        getPreferences(Context.MODE_PRIVATE).edit()
+                            .putBoolean("auto_save", autoSaveEnabled).apply()
+                        Toast.makeText(
+                            this,
+                            if (autoSaveEnabled) "Đã bật Tự động lưu" else "Đã tắt Tự động lưu",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    8 -> {
                         if (!isSplitMode) switchTab(TabMode.TERMINAL)
                         executeCommandInActiveSession("ps -A 2>/dev/null || ps")
                     }
-                    6 -> {
-                        if (!isSplitMode) switchTab(TabMode.TERMINAL)
-                        executeCommandInActiveSession("ip addr 2>/dev/null || ifconfig 2>/dev/null || netstat -rn")
-                    }
-                    7 -> {
-                        if (!isSplitMode) switchTab(TabMode.TERMINAL)
-                        executeCommandInActiveSession("df -h 2>/dev/null || df")
-                    }
-                    8 -> adjustFontSize(1f)
-                    9 -> adjustFontSize(-1f)
-                    10 -> {
+                    9 -> adjustFontSize(1f)
+                    10 -> adjustFontSize(-1f)
+                    11 -> {
                         currentSession()?.clearTranscript()
                         renderTerminalTranscript()
                     }
@@ -1182,10 +1673,12 @@ class MainActivity : Activity() {
             "🌑 GitHub Dark (Mặc định)",
             "🧛 Dracula Purple",
             "🌅 Monokai Warm",
-            "💻 Matrix OLED Black"
+            "💻 Matrix OLED Black",
+            "🌊 Solarized Deep Ocean",
+            "☀️ VS Code Clean Dark+"
         )
         AlertDialog.Builder(this)
-            .setTitle("🎨 Chọn Giao Diện IDE")
+            .setTitle("🎨 Chọn Giao Diện IDE (6 Themes)")
             .setItems(themes) { _, index ->
                 applyColorTheme(index, savePref = true)
             }
@@ -1198,6 +1691,8 @@ class MainActivity : Activity() {
             1 -> 0xFF1E1F29.toInt() to 0xFF282A36.toInt() // Dracula
             2 -> 0xFF1E1F1C.toInt() to 0xFF272822.toInt() // Monokai
             3 -> 0xFF000000.toInt() to 0xFF0A0F0A.toInt() // Matrix OLED Black
+            4 -> 0xFF002B36.toInt() to 0xFF073642.toInt() // Solarized Ocean
+            5 -> 0xFF1E1E1E.toInt() to 0xFF252526.toInt() // VS Code Dark+
             else -> 0xFF0D1117.toInt() to 0xFF161B22.toInt() // GitHub Dark
         }
         terminalScrollView.setBackgroundColor(bgPrimary)
@@ -1213,6 +1708,7 @@ class MainActivity : Activity() {
 
     private fun restoreSavedPreferences() {
         val prefs = getPreferences(Context.MODE_PRIVATE)
+        autoSaveEnabled = prefs.getBoolean("auto_save", true)
         val savedTheme = prefs.getInt("theme_index", 0)
         if (savedTheme != 0) {
             applyColorTheme(savedTheme, savePref = false)
@@ -1223,6 +1719,7 @@ class MainActivity : Activity() {
             tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
             etCodeEditor.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
             tvLineNumbers.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+            tvGitOutput.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
         }
     }
 
@@ -1231,6 +1728,7 @@ class MainActivity : Activity() {
         tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
         etCodeEditor.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
         tvLineNumbers.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+        tvGitOutput.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
         getPreferences(Context.MODE_PRIVATE).edit().putFloat("font_size_sp", fontSizeSp).apply()
         Toast.makeText(this, "Cỡ chữ: ${fontSizeSp.toInt()}sp", Toast.LENGTH_SHORT).show()
     }
@@ -1268,7 +1766,7 @@ class MainActivity : Activity() {
                     switchTab(TabMode.TERMINAL)
                 }
             }
-            TabMode.EDITOR -> {
+            TabMode.EDITOR, TabMode.GIT -> {
                 switchTab(TabMode.TERMINAL)
             }
             TabMode.TERMINAL -> {
@@ -1280,7 +1778,7 @@ class MainActivity : Activity() {
 
     private fun updateTopSubtitle() {
         val session = currentSession()
-        val dirDisplay = session?.let { it.formatPath(it.workingDir) } ?: "~/workspace"
+        val dirDisplay = session?.getPromptLabel() ?: "~/workspace"
         val fileDisplay = currentEditorDoc()?.file?.name ?: "none"
         tvSubtitleStatus.text = "$dirDisplay  •  $fileDisplay"
     }
@@ -1318,13 +1816,17 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        sessions.forEach { it.interruptCurrentProcess() }
+        sessions.forEach {
+            it.interruptCurrentProcess()
+            it.sshManager?.disconnect()
+        }
         ioExecutor.shutdownNow()
     }
 
     private enum class TabMode {
         TERMINAL,
         EDITOR,
-        FILES
+        FILES,
+        GIT
     }
 }
