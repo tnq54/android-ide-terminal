@@ -45,7 +45,7 @@
                 android:ellipsize="end"
                 android:includeFontPadding="false"
                 android:singleLine="true"
-                android:text="TermIDE Studio v3.0 Full"
+                android:text="TermIDE Studio v4.0 Full-Stack"
                 android:textColor="@color/ide_text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -188,6 +188,7 @@
             android:id="@+id/tabBtnGit"
             android:layout_width="0dp"
             android:layout_height="match_parent"
+            android:layout_marginEnd="4dp"
             android:layout_weight="1"
             android:background="@drawable/bg_button_surface"
             android:clickable="true"
@@ -197,7 +198,22 @@
             android:singleLine="true"
             android:text="🌿 Git"
             android:textColor="@color/ide_text_secondary"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tabBtnStack"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/bg_button_surface"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="🖥️ Stack"
+            android:textColor="@color/ide_text_secondary"
+            android:textSize="11sp" />
     </LinearLayout>
 
     <View
@@ -1162,6 +1178,131 @@
                     android:textSize="13sp"
                     android:textStyle="bold" />
             </LinearLayout>
+        </LinearLayout>
+
+        <!-- ==================== PANE: FULL-STACK WORKBENCH & CODE-SERVER ==================== -->
+        <LinearLayout
+            android:id="@+id/paneStack"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Full-Stack Action Strip -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:background="@color/ide_bg_secondary"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp">
+
+                    <TextView
+                        android:id="@+id/btnStackMonaco"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_primary"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:singleLine="true"
+                        android:text="💻 Monaco IDE"
+                        android:textColor="@color/ide_text_primary"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnStackLocalServer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_green"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:singleLine="true"
+                        android:text="⚡ Local :8088"
+                        android:textColor="@color/ide_text_primary"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnStackCodeServer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:singleLine="true"
+                        android:text="☁️ code-server VPS"
+                        android:textColor="@color/ide_accent_cyan"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/btnStackInstallVps"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:singleLine="true"
+                        android:text="🚀 Cài code-server qua SSH"
+                        android:textColor="@color/ide_accent_orange"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/btnStackReload"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:background="@drawable/bg_button_surface"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:singleLine="true"
+                        android:text="🔄 Reload"
+                        android:textColor="@color/ide_text_primary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </HorizontalScrollView>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/ide_border" />
+
+            <!-- Embedded Full-Stack WebView (Monaco Workbench / Local :8088 / Remote code-server) -->
+            <WebView
+                android:id="@+id/stackWebView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
         </LinearLayout>
     </LinearLayout>
 

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TermIDE Full-Stack Workbench</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;background:#0d1117;color:#e6edf3;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#topbar{height:38px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;padding:0 10px;gap:8px;font-size:12px;overflow-x:auto;white-space:nowrap}
+.badge{background:#238636;color:#fff;padding:3px 8px;border-radius:12px;font-weight:bold;font-size:11px}
+.btn{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap}
+.btn.primary{background:#1f6feb;border-color:#1f6feb;color:#fff;font-weight:bold}
+.btn.green{background:#238636;border-color:#238636;color:#fff;font-weight:bold}
+#main{flex:1;display:flex;min-height:0;position:relative}
+#sidebar{width:190px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;flex-shrink:0}
+#sidebar.hidden{display:none}
+#sidebar-hdr{padding:8px 10px;font-size:11px;color:#8b949e;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center}
+#filelist{flex:1;overflow-y:auto;padding:4px 0}
+.fitem{padding:7px 10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;border-left:3px solid transparent}
+.fitem.active{background:#21262d;color:#58a6ff;border-left-color:#58a6ff;font-weight:bold}
+#workarea{flex:1;display:flex;flex-direction:column;min-width:0}
+#editorWrap{flex:1;position:relative;display:flex;flex-direction:column;min-height:0}
+#monacoContainer{flex:1;display:none;min-height:0}
+#fallbackEditor{flex:1;width:100%;background:#0d1117;color:#e6edf3;border:none;padding:12px;font-family:monospace;font-size:13px;line-height:1.45;resize:none;outline:none}
+#consolePane{height:155px;background:#090d11;border-top:2px solid #1f6feb;display:flex;flex-direction:column;flex-shrink:0}
+#consoleHdr{height:28px;background:#161b22;padding:0 10px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#79c0ff}
+#termOut{flex:1;padding:8px 10px;overflow-y:auto;font-size:12px;white-space:pre-wrap;color:#e6edf3}
+#termInRow{height:34px;background:#161b22;border-top:1px solid #30363d;display:flex;align-items:center;padding:0 8px;gap:6px}
+#termIn{flex:1;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 8px;font-family:monospace;font-size:12px;outline:none}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <span class="badge" id="srvBadge">⚡ Full-Stack Ready</span>
+  <button class="btn" onclick="toggleFiles()">📁 Files</button>
+  <button class="btn" onclick="createNewFile()">+ File</button>
+  <button class="btn primary" onclick="saveActiveFile()">💾 Save</button>
+  <button class="btn green" onclick="runActiveFile()">▶ Run Full-Stack</button>
+  <button class="btn" onclick="testRestApi()">🔌 Test /api/status</button>
+  <button class="btn" onclick="promptCodeServer()">☁️ code-server VPS</button>
+</div>
+<div id="main">
+  <div id="sidebar" class="hidden">
+    <div id="sidebar-hdr"><span>WORKSPACE</span><button class="btn" onclick="reloadWorkspace()">🔄</button></div>
+    <div id="filelist"></div>
+  </div>
+  <div id="workarea">
+    <div id="editorWrap">
+      <div id="monacoContainer"></div>
+      <textarea id="fallbackEditor" spellcheck="false"></textarea>
+    </div>
+    <div id="consolePane">
+      <div id="consoleHdr">
+        <span id="activeFileLabel">📄 index.html</span>
+        <span onclick="clearConsole()" style="cursor:pointer;color:#f85149">🧹 Clear</span>
+      </div>
+      <div id="termOut">🚀 TermIDE Full-Stack Workbench (Native Bridge + REST API + Monaco)
+Gõ lệnh shell bên dưới hoặc bấm "🔌 Test /api/status" để kiểm tra Backend API.
+</div>
+      <div id="termInRow">
+        <span style="color:#3fb950;font-weight:bold">$</span>
+        <input id="termIn" placeholder="Nhập lệnh shell / backend (vd: ls -la, uname -a)..." onkeydown="if(event.key==='Enter')runShellInput()" />
+        <button class="btn primary" onclick="runShellInput()">Gửi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let workspaceFiles = {};
+let currentFile = 'index.html';
+let monacoEditor = null;
+
+function logTerm(msg) {
+  const el = document.getElementById('termOut');
+  el.textContent += '\n' + msg;
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearConsole() {
+  document.getElementById('termOut').textContent = '';
+}
+
+function toggleFiles() {
+  document.getElementById('sidebar').classList.toggle('hidden');
+}
+
+function getEditorValue() {
+  if (monacoEditor) return monacoEditor.getValue();
+  return document.getElementById('fallbackEditor').value;
+}
+
+function setEditorValue(val, fileName) {
+  document.getElementById('fallbackEditor').value = val;
+  if (monacoEditor && window.monaco) {
+    const ext = (fileName || '').split('.').pop();
+    const langMap = {sh:'shell',py:'python',kt:'kotlin',java:'java',js:'javascript',html:'html',css:'css',json:'json',md:'markdown'};
+    const model = monaco.editor.createModel(val, langMap[ext] || 'plaintext');
+    monacoEditor.setModel(model);
+  }
+}
+
+function reloadWorkspace() {
+  if (window.AndroidBridge && window.AndroidBridge.listWorkspaceFiles) {
+    try {
+      const raw = window.AndroidBridge.listWorkspaceFiles();
+      workspaceFiles = JSON.parse(raw);
+      renderFileList();
+      if (!workspaceFiles[currentFile]) {
+        currentFile = Object.keys(workspaceFiles)[0] || 'hello.sh';
+      }
+      openWorkspaceFile(currentFile);
+      const port = window.AndroidBridge.getLocalServerPort ? window.AndroidBridge.getLocalServerPort() : 8088;
+      document.getElementById('srvBadge').textContent = '⚡ API :'+port;
+    } catch (e) {
+      logTerm('Bridge error: ' + e.message);
+    }
+  }
+}
+
+function renderFileList() {
+  const box = document.getElementById('filelist');
+  box.innerHTML = '';
+  Object.keys(workspaceFiles).sort().forEach(name => {
+    const item = document.createElement('div');
+    item.className = 'fitem' + (name === currentFile ? ' active' : '');
+    item.textContent = '📄 ' + name;
+    item.onclick = () => {
+      openWorkspaceFile(name);
+      document.getElementById('sidebar').classList.add('hidden');
+    };
+    box.appendChild(item);
+  });
+}
+
+function openWorkspaceFile(name) {
+  currentFile = name;
+  const content = workspaceFiles[name] || '';
+  document.getElementById('activeFileLabel').textContent = '📄 ' + name;
+  setEditorValue(content, name);
+  renderFileList();
+}
+
+function saveActiveFile() {
+  const content = getEditorValue();
+  workspaceFiles[currentFile] = content;
+  if (window.AndroidBridge && window.AndroidBridge.saveWorkspaceFile) {
+    window.AndroidBridge.saveWorkspaceFile(currentFile, content);
+    logTerm('💾 Đã lưu ' + currentFile + ' vào Android Workspace.');
+  }
+}
+
+function createNewFile() {
+  const name = prompt('Tên file mới (vd: app.js, api.sh, page.html):', 'app.js');
+  if (!name) return;
+  workspaceFiles[name] = '';
+  openWorkspaceFile(name);
+  saveActiveFile();
+}
+
+function runActiveFile() {
+  saveActiveFile();
+  if (window.AndroidBridge && window.AndroidBridge.runWorkspaceFile) {
+    const out = window.AndroidBridge.runWorkspaceFile(currentFile);
+    logTerm('▶ Run ' + currentFile + ':\n' + out);
+  }
+}
+
+function runShellInput() {
+  const input = document.getElementById('termIn');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  input.value = '';
+  logTerm('$ ' + cmd);
+  if (window.AndroidBridge && window.AndroidBridge.execShellCommand) {
+    const out = window.AndroidBridge.execShellCommand(cmd);
+    logTerm(out);
+  }
+}
+
+async function testRestApi() {
+  const port = (window.AndroidBridge && window.AndroidBridge.getLocalServerPort)
+    ? window.AndroidBridge.getLocalServerPort() : 8088;
+  const url = 'http://127.0.0.1:' + port + '/api/status';
+  logTerm('🔌 GET ' + url + ' ...');
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    logTerm('✅ Response 200 OK:\n' + JSON.stringify(data, null, 2));
+  } catch (e) {
+    logTerm('⚠️ Fetch error: ' + e.message);
+  }
+}
+
+function promptCodeServer() {
+  if (window.AndroidBridge && window.AndroidBridge.openCodeServerDialog) {
+    window.AndroidBridge.openCodeServerDialog();
+  }
+}
+
+reloadWorkspace();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js" onload="initMonaco()"></script>
+<script>
+function initMonaco() {
+  if (!window.require) return;
+  require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+  require(['vs/editor/editor.main'], function() {
+    document.getElementById('fallbackEditor').style.display = 'none';
+    const container = document.getElementById('monacoContainer');
+    container.style.display = 'block';
+    monacoEditor = monaco.editor.create(container, {
+      value: workspaceFiles[currentFile] || '',
+      language: 'html',
+      theme: 'vs-dark',
+      automaticLayout: true,
+      fontSize: 13,
+      minimap: { enabled: false },
+      wordWrap: 'on'
+    });
+  });
+}
+</script>
+</body>
+</html>

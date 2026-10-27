@@ -6,6 +6,8 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.nio.file.Files
 
 class TerminalSessionTest {
@@ -147,5 +149,34 @@ class TerminalSessionTest {
     fun testStripAnsiCodes() {
         val raw = "\u001B[32mSUCCESS\u001B[0m: Build complete"
         assertEquals("SUCCESS: Build complete", TerminalSession.stripAnsiCodes(raw))
+    }
+
+    @Test
+    fun testLocalFullStackServerEndpoints() {
+        val tempDir = Files.createTempDirectory("termide_fullstack_test").toFile()
+        val server = LocalFullStackServer(tempDir) { cmd ->
+            0 to "EXEC_OK:$cmd"
+        }
+        try {
+            File(tempDir, "hello.txt").writeText("Hello FullStack")
+            val port = server.start(0)
+            assertTrue(port > 0)
+
+            val statusConn = URL("http://127.0.0.1:$port/api/status").openConnection() as HttpURLConnection
+            assertEquals(200, statusConn.responseCode)
+            val statusBody = statusConn.inputStream.bufferedReader().readText()
+            assertTrue(statusBody.contains("\"status\":\"online\""))
+
+            val execConn = URL("http://127.0.0.1:$port/api/exec").openConnection() as HttpURLConnection
+            execConn.requestMethod = "POST"
+            execConn.doOutput = true
+            execConn.outputStream.use { it.write("""{"command":"uname -a"}""".toByteArray()) }
+            assertEquals(200, execConn.responseCode)
+            val execBody = execConn.inputStream.bufferedReader().readText()
+            assertTrue(execBody.contains("EXEC_OK:uname -a"))
+        } finally {
+            server.stop()
+            tempDir.deleteRecursively()
+        }
     }
 }

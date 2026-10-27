@@ -22,7 +22,10 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
@@ -32,7 +35,10 @@ import android.widget.PopupMenu
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import org.json.JSONObject
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
 import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
@@ -43,11 +49,13 @@ class MainActivity : Activity() {
     // Workspace & State
     private lateinit var workspaceDir: File
     private lateinit var currentExplorerDir: File
+    private lateinit var localFullStackServer: LocalFullStackServer
     private var isApplyingSyntax: Boolean = false
     private var fontSizeSp: Float = 13f
     private var activeTabMode: TabMode = TabMode.TERMINAL
     private var isSplitMode: Boolean = false
     private var autoSaveEnabled: Boolean = true
+    private var stackInitialized: Boolean = false
 
     // Multi-Tab Editor State
     private val editorTabs = mutableListOf<EditorTabDocument>()
@@ -69,12 +77,14 @@ class MainActivity : Activity() {
     private lateinit var tabBtnEditor: TextView
     private lateinit var tabBtnFiles: TextView
     private lateinit var tabBtnGit: TextView
+    private lateinit var tabBtnStack: TextView
 
     // Panes
     private lateinit var paneTerminal: LinearLayout
     private lateinit var paneEditor: LinearLayout
     private lateinit var paneFiles: LinearLayout
     private lateinit var paneGit: LinearLayout
+    private lateinit var paneStack: LinearLayout
     private lateinit var splitPaneDivider: View
 
     // Terminal Views
@@ -130,6 +140,14 @@ class MainActivity : Activity() {
     private lateinit var etGitCommitMsg: EditText
     private lateinit var btnGitCommitNow: TextView
 
+    // Full-Stack Workbench Views
+    private lateinit var btnStackMonaco: TextView
+    private lateinit var btnStackLocalServer: TextView
+    private lateinit var btnStackCodeServer: TextView
+    private lateinit var btnStackInstallVps: TextView
+    private lateinit var btnStackReload: TextView
+    private lateinit var stackWebView: WebView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -138,6 +156,12 @@ class MainActivity : Activity() {
         val starterScript = WorkspaceInitializer.ensureDefaultWorkspace(workspaceDir)
         currentExplorerDir = workspaceDir
 
+        // Start embedded Full-Stack HTTP + REST Server on 127.0.0.1:8088
+        localFullStackServer = LocalFullStackServer(workspaceDir) { cmd ->
+            runBackendCommandSynchronously(cmd)
+        }
+        localFullStackServer.start(8088)
+
         bindViews()
         setupWindowInsetsForMobile()
         setupNavigationTabs()
@@ -145,6 +169,7 @@ class MainActivity : Activity() {
         setupEditorUi()
         setupFileExplorerUi()
         setupGitUi()
+        setupFullStackWorkbenchUi()
         restoreSavedPreferences()
 
         // Create initial terminal session
@@ -173,11 +198,13 @@ class MainActivity : Activity() {
         tabBtnEditor = findViewById(R.id.tabBtnEditor)
         tabBtnFiles = findViewById(R.id.tabBtnFiles)
         tabBtnGit = findViewById(R.id.tabBtnGit)
+        tabBtnStack = findViewById(R.id.tabBtnStack)
 
         paneTerminal = findViewById(R.id.paneTerminal)
         paneEditor = findViewById(R.id.paneEditor)
         paneFiles = findViewById(R.id.paneFiles)
         paneGit = findViewById(R.id.paneGit)
+        paneStack = findViewById(R.id.paneStack)
         splitPaneDivider = findViewById(R.id.splitPaneDivider)
 
         sessionTabsContainer = findViewById(R.id.sessionTabsContainer)
@@ -227,6 +254,13 @@ class MainActivity : Activity() {
         tvGitOutput = findViewById(R.id.tvGitOutput)
         etGitCommitMsg = findViewById(R.id.etGitCommitMsg)
         btnGitCommitNow = findViewById(R.id.btnGitCommitNow)
+
+        btnStackMonaco = findViewById(R.id.btnStackMonaco)
+        btnStackLocalServer = findViewById(R.id.btnStackLocalServer)
+        btnStackCodeServer = findViewById(R.id.btnStackCodeServer)
+        btnStackInstallVps = findViewById(R.id.btnStackInstallVps)
+        btnStackReload = findViewById(R.id.btnStackReload)
+        stackWebView = findViewById(R.id.stackWebView)
     }
 
     private fun setupWindowInsetsForMobile() {
@@ -297,6 +331,16 @@ class MainActivity : Activity() {
             switchTab(TabMode.GIT)
             refreshGitStatusView()
         }
+        tabBtnStack.setOnClickListener {
+            if (autoSaveEnabled) saveCurrentEditorFile(showToast = false)
+            isSplitMode = false
+            hideSoftKeyboard()
+            switchTab(TabMode.STACK)
+            if (!stackInitialized) {
+                stackInitialized = true
+                stackWebView.loadUrl("file:///android_asset/www/index.html")
+            }
+        }
 
         btnToggleSplit.setOnClickListener {
             isSplitMode = !isSplitMode
@@ -337,6 +381,7 @@ class MainActivity : Activity() {
             paneTerminal.visibility = View.VISIBLE
             paneFiles.visibility = View.GONE
             paneGit.visibility = View.GONE
+            paneStack.visibility = View.GONE
 
             (paneEditor.layoutParams as? LinearLayout.LayoutParams)?.weight = 1.15f
             (paneTerminal.layoutParams as? LinearLayout.LayoutParams)?.weight = 0.85f
@@ -347,12 +392,14 @@ class MainActivity : Activity() {
             styleTabButton(tabBtnEditor, true)
             styleTabButton(tabBtnFiles, false)
             styleTabButton(tabBtnGit, false)
+            styleTabButton(tabBtnStack, false)
         } else {
             splitPaneDivider.visibility = View.GONE
             paneTerminal.visibility = if (activeTabMode == TabMode.TERMINAL) View.VISIBLE else View.GONE
             paneEditor.visibility = if (activeTabMode == TabMode.EDITOR) View.VISIBLE else View.GONE
             paneFiles.visibility = if (activeTabMode == TabMode.FILES) View.VISIBLE else View.GONE
             paneGit.visibility = if (activeTabMode == TabMode.GIT) View.VISIBLE else View.GONE
+            paneStack.visibility = if (activeTabMode == TabMode.STACK) View.VISIBLE else View.GONE
 
             (paneEditor.layoutParams as? LinearLayout.LayoutParams)?.weight = 1f
             (paneTerminal.layoutParams as? LinearLayout.LayoutParams)?.weight = 1f
@@ -361,6 +408,7 @@ class MainActivity : Activity() {
             styleTabButton(tabBtnEditor, activeTabMode == TabMode.EDITOR)
             styleTabButton(tabBtnFiles, activeTabMode == TabMode.FILES)
             styleTabButton(tabBtnGit, activeTabMode == TabMode.GIT)
+            styleTabButton(tabBtnStack, activeTabMode == TabMode.STACK)
         }
     }
 
@@ -372,6 +420,217 @@ class MainActivity : Activity() {
             if (isSelected) 0xFFE6EDF3.toInt() else 0xFF8B949E.toInt()
         )
         tabView.setTypeface(null, if (isSelected) Typeface.BOLD else Typeface.NORMAL)
+    }
+
+    // ==================== FULL-STACK WORKBENCH & CODE-SERVER LOGIC ====================
+
+    @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
+    private fun setupFullStackWorkbenchUi() {
+        val cm = CookieManager.getInstance()
+        cm.setAcceptCookie(true)
+        cm.setAcceptThirdPartyCookies(stackWebView, true)
+
+        stackWebView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            allowFileAccess = true
+            allowContentAccess = true
+            loadWithOverviewMode = true
+            useWideViewPort = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        }
+        stackWebView.webViewClient = WebViewClient()
+        stackWebView.webChromeClient = WebChromeClient()
+        stackWebView.addJavascriptInterface(FullStackBridge(), "AndroidBridge")
+
+        btnStackLocalServer.text = "⚡ Local :${localFullStackServer.boundPort}"
+
+        btnStackMonaco.setOnClickListener {
+            stackInitialized = true
+            stackWebView.loadUrl("file:///android_asset/www/index.html")
+            Toast.makeText(this, "Đã mở Monaco Full-Stack Workbench", Toast.LENGTH_SHORT).show()
+        }
+
+        btnStackLocalServer.setOnClickListener {
+            stackInitialized = true
+            val url = "${localFullStackServer.getBaseUrl()}/index.html"
+            stackWebView.loadUrl(url)
+            Toast.makeText(this, "Đang chạy từ Server nội bộ: $url", Toast.LENGTH_SHORT).show()
+        }
+
+        btnStackCodeServer.setOnClickListener {
+            showCodeServerConfigDialog()
+        }
+
+        btnStackInstallVps.setOnClickListener {
+            installAndStartCodeServerOverSsh()
+        }
+
+        btnStackReload.setOnClickListener {
+            stackWebView.reload()
+        }
+    }
+
+    private fun showCodeServerConfigDialog() {
+        val prefs = getPreferences(Context.MODE_PRIVATE)
+        val savedUrl = prefs.getString("code_server_url", "http://127.0.0.1:8080").orEmpty()
+        val savedPass = prefs.getString("code_server_pass", "").orEmpty()
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(12), dp(18), dp(4))
+        }
+        val etUrl = EditText(this).apply {
+            hint = "URL code-server (vd: https://vps:8080 hoặc http://127.0.0.1:8080)"
+            setText(savedUrl)
+            setSingleLine(true)
+        }
+        val etPass = EditText(this).apply {
+            hint = "Mật khẩu code-server (tùy chọn)"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setText(savedPass)
+            setSingleLine(true)
+        }
+        layout.addView(etUrl)
+        layout.addView(etPass)
+
+        AlertDialog.Builder(this)
+            .setTitle("☁️ Kết nối VS Code Server (Full-Stack)")
+            .setMessage("Nhập địa chỉ code-server trên VPS hoặc Termux (:8080) để mở VS Code đầy đủ trong tab Stack.")
+            .setView(layout)
+            .setPositiveButton("Kết nối") { _, _ ->
+                val url = etUrl.text.toString().trim().trimEnd('/')
+                val pass = etPass.text.toString()
+                prefs.edit().putString("code_server_url", url).putString("code_server_pass", pass).apply()
+                if (url.isNotEmpty()) {
+                    val target = if (pass.isNotEmpty()) "$url/?password=$pass" else url
+                    stackInitialized = true
+                    switchTab(TabMode.STACK)
+                    stackWebView.loadUrl(target)
+                }
+            }
+            .setNeutralButton("Dùng Monaco Local") { _, _ ->
+                stackInitialized = true
+                switchTab(TabMode.STACK)
+                stackWebView.loadUrl("file:///android_asset/www/index.html")
+            }
+            .setNegativeButton("Đóng", null)
+            .show()
+    }
+
+    private fun installAndStartCodeServerOverSsh() {
+        val session = currentSession()
+        if (session == null || !session.isSshActive()) {
+            AlertDialog.Builder(this)
+                .setTitle("🚀 Cài & Chạy code-server trên VPS")
+                .setMessage(
+                    "Bạn có thể:\n" +
+                    "1. Kết nối SSH tới VPS trước, sau đó bấm nút này để tự động cài & chạy code-server trên port 8080.\n" +
+                    "2. Hoặc sao chép lệnh cài đặt chuẩn vào Clipboard."
+                )
+                .setPositiveButton("Mở kết nối SSH") { _, _ ->
+                    showSshManagerDialog()
+                }
+                .setNeutralButton("Copy lệnh cài") { _, _ ->
+                    val cmd = "curl -fsSL https://code-server.dev/install.sh | sh && code-server --bind-addr 0.0.0.0:8080"
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    clipboard?.setPrimaryClip(ClipData.newPlainText("code-server setup", cmd))
+                    Toast.makeText(this, "Đã copy lệnh cài code-server", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Đóng", null)
+                .show()
+            return
+        }
+
+        val installCmd = "if ! command -v code-server >/dev/null 2>&1; then curl -fsSL https://code-server.dev/install.sh | sh; fi && nohup code-server --bind-addr 0.0.0.0:8080 >/tmp/code-server.log 2>&1 & sleep 2 && echo 'code-server started on :8080'"
+        switchTab(TabMode.TERMINAL)
+        executeCommandInActiveSession(installCmd)
+    }
+
+    private fun runBackendCommandSynchronously(command: String): Pair<Int, String> {
+        val session = currentSession()
+        val ssh = session?.sshManager
+        if (ssh != null && ssh.isConnected()) {
+            return try {
+                val sb = StringBuilder()
+                val code = ssh.executeRemoteCommand(command) { line ->
+                    sb.appendLine(line)
+                }
+                code to sb.toString().trimEnd()
+            } catch (e: Exception) {
+                1 to "SSH error: ${e.message}"
+            }
+        }
+
+        return try {
+            val shell = if (File("/system/bin/sh").exists()) "/system/bin/sh" else "sh"
+            val pb = ProcessBuilder(shell, "-c", command)
+            pb.directory(session?.workingDir ?: workspaceDir)
+            pb.redirectErrorStream(true)
+            val proc = pb.start()
+            val out = BufferedReader(InputStreamReader(proc.inputStream)).readText()
+            val code = proc.waitFor()
+            code to out.trimEnd()
+        } catch (e: Exception) {
+            1 to "Exec error: ${e.message}"
+        }
+    }
+
+    inner class FullStackBridge {
+        @JavascriptInterface
+        fun listWorkspaceFiles(): String {
+            val obj = JSONObject()
+            workspaceDir.listFiles()
+                ?.filter { it.isFile && it.length() < 256_000 }
+                ?.forEach { f ->
+                    obj.put(f.name, f.readText())
+                }
+            return obj.toString()
+        }
+
+        @JavascriptInterface
+        fun saveWorkspaceFile(name: String, content: String) {
+            val safeName = name.substringAfterLast('/')
+            val target = File(workspaceDir, safeName)
+            target.writeText(content)
+            if (target.extension.lowercase() == "sh") {
+                target.setExecutable(true)
+            }
+            mainHandler.post {
+                editorTabs.find { it.file.name == safeName }?.let { doc ->
+                    doc.markSaved(content)
+                    if (currentEditorDoc() == doc) {
+                        applyDocumentContentToEditor(doc)
+                    }
+                }
+                refreshFileExplorer()
+            }
+        }
+
+        @JavascriptInterface
+        fun runWorkspaceFile(name: String): String {
+            val target = File(workspaceDir, name.substringAfterLast('/'))
+            val cmd = SyntaxHighlighter.buildRunCommand(target)
+            return runBackendCommandSynchronously(cmd).second
+        }
+
+        @JavascriptInterface
+        fun execShellCommand(cmd: String): String {
+            return runBackendCommandSynchronously(cmd).second
+        }
+
+        @JavascriptInterface
+        fun getLocalServerPort(): Int {
+            return localFullStackServer.boundPort
+        }
+
+        @JavascriptInterface
+        fun openCodeServerDialog() {
+            mainHandler.post {
+                showCodeServerConfigDialog()
+            }
+        }
     }
 
     // ==================== TERMINAL & SSH LOGIC ====================
@@ -916,7 +1175,7 @@ class MainActivity : Activity() {
             webViewClient = WebViewClient()
             webChromeClient = WebChromeClient()
             loadDataWithBaseURL(
-                "file://${workspaceDir.absolutePath}/",
+                "${localFullStackServer.getBaseUrl()}/",
                 htmlContent,
                 "text/html",
                 "UTF-8",
@@ -1115,7 +1374,6 @@ class MainActivity : Activity() {
         hideSoftKeyboard()
         val session = currentSession()
         if (session != null && session.isSshActive()) {
-            // Upload script to remote SSH server and execute remotely
             val ssh = session.sshManager ?: return
             if (!isSplitMode) switchTab(TabMode.TERMINAL)
             session.appendLine("\u001B[36m⟳ Uploading ${savedFile.name} to remote SSH server...\u001B[0m")
@@ -1608,41 +1866,49 @@ class MainActivity : Activity() {
     private fun showQuickToolsDialog() {
         val autoSaveLabel = if (autoSaveEnabled) "💾 Tự động lưu khi chuyển tab: BẬT" else "💾 Tự động lưu khi chuyển tab: TẮT"
         val options = arrayOf(
+            "🖥️ Mở Full-Stack Workbench (Monaco + REST API :${localFullStackServer.boundPort})",
+            "☁️ Kết nối VS Code Server trên VPS (code-server)",
             "🌐 Kết nối SSH / Quản lý VPS từ xa",
             "🚀 Chạy thông tin hệ thống (sysinfo.sh)",
             "⚡ Chạy Benchmark tốc độ Shell (benchmark.sh)",
-            "🌐 Xem trước Web / HTML / JS (Live Preview)",
             "🔎 Tìm kiếm toàn bộ Project (Global Search)",
             "⬒ Bật/Tắt chia đôi màn hình (Split Editor + Terminal)",
             "🎨 Đổi giao diện màu sắc (6 IDE Color Themes)",
             autoSaveLabel,
-            "📊 Danh sách tiến trình đang chạy (ps)",
             "🔍 Phóng to cỡ chữ (+1sp)",
             "🔎 Thu nhỏ cỡ chữ (-1sp)",
             "🧹 Xóa màn hình Terminal"
         )
 
         AlertDialog.Builder(this)
-            .setTitle("⚡ TermIDE Studio v3.0 Full Tools")
+            .setTitle("⚡ TermIDE Studio v4.0 Full-Stack Tools")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> showSshManagerDialog()
-                    1 -> {
+                    0 -> {
+                        isSplitMode = false
+                        switchTab(TabMode.STACK)
+                        if (!stackInitialized) {
+                            stackInitialized = true
+                            stackWebView.loadUrl("file:///android_asset/www/index.html")
+                        }
+                    }
+                    1 -> showCodeServerConfigDialog()
+                    2 -> showSshManagerDialog()
+                    3 -> {
                         if (!isSplitMode) switchTab(TabMode.TERMINAL)
                         executeCommandInActiveSession("sh \"${File(workspaceDir, "sysinfo.sh").absolutePath}\"")
                     }
-                    2 -> {
+                    4 -> {
                         if (!isSplitMode) switchTab(TabMode.TERMINAL)
                         executeCommandInActiveSession("sh \"${File(workspaceDir, "benchmark.sh").absolutePath}\"")
                     }
-                    3 -> showLiveWebPreviewDialog()
-                    4 -> showGlobalWorkspaceSearchDialog()
-                    5 -> {
+                    5 -> showGlobalWorkspaceSearchDialog()
+                    6 -> {
                         isSplitMode = !isSplitMode
                         applyPaneVisibility()
                     }
-                    6 -> showThemePickerDialog()
-                    7 -> {
+                    7 -> showThemePickerDialog()
+                    8 -> {
                         autoSaveEnabled = !autoSaveEnabled
                         getPreferences(Context.MODE_PRIVATE).edit()
                             .putBoolean("auto_save", autoSaveEnabled).apply()
@@ -1651,10 +1917,6 @@ class MainActivity : Activity() {
                             if (autoSaveEnabled) "Đã bật Tự động lưu" else "Đã tắt Tự động lưu",
                             Toast.LENGTH_SHORT
                         ).show()
-                    }
-                    8 -> {
-                        if (!isSplitMode) switchTab(TabMode.TERMINAL)
-                        executeCommandInActiveSession("ps -A 2>/dev/null || ps")
                     }
                     9 -> adjustFontSize(1f)
                     10 -> adjustFontSize(-1f)
@@ -1756,6 +2018,13 @@ class MainActivity : Activity() {
             return
         }
         when (activeTabMode) {
+            TabMode.STACK -> {
+                if (stackWebView.canGoBack()) {
+                    stackWebView.goBack()
+                } else {
+                    switchTab(TabMode.TERMINAL)
+                }
+            }
             TabMode.FILES -> {
                 if (currentExplorerDir.canonicalPath != workspaceDir.canonicalPath &&
                     currentExplorerDir.parentFile?.canRead() == true
@@ -1780,7 +2049,7 @@ class MainActivity : Activity() {
         val session = currentSession()
         val dirDisplay = session?.getPromptLabel() ?: "~/workspace"
         val fileDisplay = currentEditorDoc()?.file?.name ?: "none"
-        tvSubtitleStatus.text = "$dirDisplay  •  $fileDisplay"
+        tvSubtitleStatus.text = "$dirDisplay  •  $fileDisplay  •  API :${localFullStackServer.boundPort}"
     }
 
     private fun makeKeyChipButton(label: String, onClick: () -> Unit): TextView {
@@ -1816,6 +2085,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        localFullStackServer.stop()
         sessions.forEach {
             it.interruptCurrentProcess()
             it.sshManager?.disconnect()
@@ -1827,6 +2097,7 @@ class MainActivity : Activity() {
         TERMINAL,
         EDITOR,
         FILES,
-        GIT
+        GIT,
+        STACK
     }
 }
